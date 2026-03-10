@@ -4,6 +4,8 @@ local parser = require("sade.parser")
 local index = require("sade.index")
 local heartbeat = require("sade.heartbeat")
 local supertree_ui = require("sade.supertree_ui")
+local context = require("sade.context")
+local seed = require("sade.seed")
 
 local M = {}
 
@@ -30,6 +32,29 @@ function M.setup(opts)
     end
     supertree_ui.toggle(M.state.index)
   end, { desc = "Toggle SADE Super Tree" })
+
+  vim.api.nvim_create_user_command("SadeContext", function()
+    if not M.state then
+      vim.notify("[sade] not initialized. Run :SadeInit", vim.log.levels.WARN)
+      return
+    end
+    local ctx, node_ids = context.assemble_current(M.state.sade_root, M.state.index)
+    if not ctx then
+      vim.notify("[sade] no file open", vim.log.levels.WARN)
+      return
+    end
+    vim.fn.setreg("+", ctx)
+    local nodes_str = #node_ids > 0 and table.concat(node_ids, ", ") or "none"
+    vim.notify(("[sade] context copied to clipboard (nodes: %s)"):format(nodes_str))
+  end, { desc = "Copy current file's SADE context to clipboard" })
+
+  vim.api.nvim_create_user_command("SadeSeed", function()
+    if not M.state then
+      vim.notify("[sade] not initialized. Run :SadeInit", vim.log.levels.WARN)
+      return
+    end
+    seed.run(M.state.sade_root, M.state.project_root)
+  end, { desc = "Generate seed prompt for creating initial nodes" })
 
   vim.api.nvim_create_user_command("SadeHeartbeatStop", function()
     heartbeat.stop()
