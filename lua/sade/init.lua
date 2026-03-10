@@ -8,6 +8,7 @@ local context = require("sade.context")
 local seed = require("sade.seed")
 local agent = require("sade.agent")
 local upkeep = require("sade.upkeep")
+local node_watcher = require("sade.node_watcher")
 local sade_ui = require("sade.ui")
 local log = require("sade.log")
 
@@ -85,6 +86,7 @@ function M.setup(opts)
 
   vim.api.nvim_create_user_command("SadeHeartbeatStop", function()
     heartbeat.stop()
+    node_watcher.stop()
   end, { desc = "Stop SADE heartbeat file watcher" })
 
   vim.api.nvim_create_user_command("SadeHeartbeatClear", function()
@@ -129,6 +131,7 @@ end
 --- Initialize: find or create .sade/, validate, parse nodes, build index, start heartbeat.
 function M.init()
   -- stop existing heartbeat if re-initializing
+  node_watcher.stop()
   heartbeat.stop_silent()
 
   local sade_root = project.find_root()
@@ -166,6 +169,7 @@ function M.init()
   })
 
   heartbeat.start(project_root)
+  node_watcher.start(sade_root, project_root)
 
   local count = #nodes
   vim.notify(("[sade] initialized — %d node%s loaded, heartbeat on"):format(count, count == 1 and "" or "s"))

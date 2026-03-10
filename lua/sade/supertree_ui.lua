@@ -80,15 +80,17 @@ local function render()
   if not ui.bufnr or not vim.api.nvim_buf_is_valid(ui.bufnr) then
     return
   end
-  if not ui.idx then
+
+  -- always use the current index from sade.state (supports live updates)
+  local sade = require("sade")
+  if not sade.state or not sade.state.index then
     return
   end
 
   -- check if agent is running
-  local sade = require("sade")
   local agent_running = sade.state and sade.state.agent_running or nil
 
-  ui.entries = supertree.build_entries(ui.idx, ui.expanded, agent_running)
+  ui.entries = supertree.build_entries(sade.state.index, ui.expanded, agent_running)
 
   local lines = {}
   for _, entry in ipairs(ui.entries) do
