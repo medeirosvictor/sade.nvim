@@ -2,6 +2,7 @@ local M = {}
 
 local index = require("sade.index")
 local seed = require("sade.seed")
+local prompts = require("sade.prompts")
 
 --- Scan project files to find those not mapped to any node.
 ---@param idx SadeIndex
@@ -132,6 +133,33 @@ Current state: ]] .. results.node_count .. [[ nodes, ]] .. results.file_count ..
   return table.concat(parts, "\n")
 end
 
+--- Build a prompt for simplifying/compacting nodes.
+---@param sade_root string
+---@param project_root string
+---@param idx SadeIndex
+---@return string prompt
+function M.build_simplify_prompt(sade_root, project_root, idx)
+  local results = M.check(sade_root, project_root, idx)
+  local parts = {}
+
+  table.insert(parts, prompts.simplify)
+
+  table.insert(parts, "\n## Current State\n")
+  table.insert(parts, "- Nodes: " .. results.node_count .. "\n")
+  table.insert(parts, "- Indexed files: " .. results.file_count .. "\n")
+
+  if #results.empty_nodes > 0 then
+    table.insert(parts, "\n## Empty Nodes (will be removed)\n")
+    for _, nid in ipairs(results.empty_nodes) do
+      table.insert(parts, "- " .. nid .. ".md\n")
+    end
+  end
+
+  table.insert(parts, "\nReview and simplify all node files in `.sade/nodes/`.")
+
+  return table.concat(parts, "\n")
+end
+
 --- Run upkeep check and show results.
 ---@param sade_root string
 ---@param project_root string
@@ -180,6 +208,7 @@ function M.run(sade_root, project_root, idx)
     table.insert(lines, "  No nodes found. Press 'r' to generate initial nodes.")
   else
     table.insert(lines, "  Press 'r' to run agent (or copy to clipboard if no agent)")
+    table.insert(lines, "  Press 's' to simplify/compact nodes")
   end
   table.insert(lines, "  Press 'R' to rebuild the index")
   table.insert(lines, "  Press q or Esc to close")
@@ -236,6 +265,23 @@ function M.run(sade_root, project_root, idx)
       vim.notify("[sade] After the agent saves changes, run :SadeUpkeep or press R to rebuild the index")
     else
       vim.notify("[sade] refresh prompt copied to clipboard\nNo agent configured. Run :SadeAgentSetup to pick one.", vim.log.levels.WARN)
+    end
+  end, { buffer = buf, silent = true })
+
+  vim.keymap.set("n", "s", function()
+    vim.api.nvim_win_close(win, true)
+
+    local agent = require("sade.agent")
+    local agent_id = agent.get_configured()
+
+    local prompt = M.build_simplify_prompt(sade_root, project_root, idx)
+    vim.fn.setreg("+", prompt)
+
+    if agent_id then
+      agent.invoke(sade_root, idx, { prompt = "Simplify the architectural nodes. " .. prompt })
+      vim.notify("[sade] After the agent saves changes, run :SadeUpkeep or press R to rebuild the index")
+    else
+      vim.notify("[sade] simplify prompt copied to clipboard\nNo agent configured. Run :SadeAgentSetup to pick one.", vim.log.levels.WARN)
     end
   end, { buffer = buf, silent = true })
 

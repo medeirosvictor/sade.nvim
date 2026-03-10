@@ -1,6 +1,7 @@
 local M = {}
 
 local log = require("sade.log")
+local prompts = require("sade.prompts")
 
 --- Read a file's contents, or return nil.
 ---@param filepath string
@@ -156,67 +157,10 @@ function M.build_prompt(sade_root, project_root, idx)
 
   if is_reseed then
     -- Reseed mode: only process unmapped files
-    table.insert(parts, [[Your task is to add unmapped files to the architectural node files in `.sade/nodes/`.
-
-Some files in the codebase are not yet assigned to any node. You need to either:
-1. Add these files to existing nodes where they fit, OR
-2. Create new nodes for them if they represent a new architectural responsibility.
-
-]] .. #unmapped .. [[ files need to be mapped. A file can remain unmapped if it truly doesn't fit anywhere (e.g., dead code, generated files, or files that need team review).
-
-Edit existing node markdown files in `.sade/nodes/` to add the unmapped files to their `## Files` sections.
-
-Node format:
-```markdown
-# Node Name
-
-Brief description of what this node owns.
-
-## Files
-- path/to/file.lua
-- path/to/other/**
-
-## Notes
-Implementation details...
-```
-]])
+    table.insert(parts, prompts.reseed .. "\n\n**" .. #unmapped .. " files need to be mapped.**")
   else
     -- Fresh seed: create all nodes from scratch
-    table.insert(parts, [[Your task is to describe the architecture of this codebase by creating node files.
-
-Each node represents one architectural responsibility — a group of files that work together toward a shared purpose.
-Nodes are NOT folders. A node groups files by what they DO, not where they live.
-
-Create one markdown file per node in `.sade/nodes/` with this format:
-
-```markdown
-# Node Name
-
-Brief description of what this node owns and how it works.
-
-## Files
-- path/to/file.lua
-- path/to/other/**
-
-## Notes
-Any implementation details, constraints, or decisions worth documenting.
-```
-
-Guidelines:
-- Describe what EXISTS in the codebase. Don't invent architecture that isn't there.
-- A file can belong to multiple nodes if it genuinely bridges concerns.
-- Use glob patterns (e.g. `src/auth/**`) when a whole directory belongs to one node.
-- Keep descriptions concise and concrete.
-- Name node files in kebab-case: `auth.md`, `database.md`, `api-routes.md`.
-
-Output each node as a code block prefixed with its filename:
-
-`nodes/auth.md`
-```markdown
-# Auth
-...
-```
-]])
+    table.insert(parts, prompts.seed)
   end
 
   -- reference the guiding files
