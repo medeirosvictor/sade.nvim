@@ -297,6 +297,10 @@ function M.open(idx)
       agent_mod.invoke(sade.state.sade_root, sade.state.index, { filepath = entry.filepath })
     end
   end, opts)
+  vim.keymap.set("n", "A", function()
+    local node_actions = require("sade.node_actions")
+    node_actions.show_actions()
+  end, opts)
 
   render()
   start_refresh()

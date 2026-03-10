@@ -95,6 +95,11 @@ function M.setup(opts)
     M.help()
   end, { desc = "Show SADE command reference" })
 
+  vim.api.nvim_create_user_command("Sade", function()
+    local node_actions = require("sade.node_actions")
+    node_actions.show_actions()
+  end, { desc = "Show node actions: improve, compact, unmap (use telescope if available)" })
+
   vim.api.nvim_create_user_command("SadeGuide", function()
     M.guide()
   end, { desc = "Show SADE philosophy and workflow guide" })
