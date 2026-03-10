@@ -12,6 +12,8 @@ M.defaults = {
   },
 
   tree = {
+    -- auto-open Super Tree on startup (requires auto_init = true)
+    auto_open = false,
     -- default width of the Super Tree split
     width = 26,
     -- side: "left" or "right"

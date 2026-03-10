@@ -244,6 +244,13 @@ function M.init()
 
   local count = #nodes
   vim.notify(("[sade] initialized — %d node%s loaded, heartbeat on"):format(count, count == 1 and "" or "s"))
+
+  -- Auto-open Super Tree if configured
+  if config.values.tree.auto_open then
+    vim.defer_fn(function()
+      supertree_ui.toggle(M.state.index)
+    end, 100)
+  end
 end
 
 --- Print current state and, if a buffer is open, its node(s).
