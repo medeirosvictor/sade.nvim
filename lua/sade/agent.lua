@@ -190,6 +190,12 @@ function M.invoke(sade_root, idx, opts)
   -- build command via provider
   local cmd_str = provider.build_cmd(ctx_file, opts.prompt)
 
+  -- prepend cd to project root so agent runs in the right directory
+  cmd_str = "cd " .. vim.fn.shellescape(project_root) .. " && " .. cmd_str
+
+  -- notify the command being run
+  vim.notify("[sade] running: " .. cmd_str, vim.log.levels.INFO)
+
   -- copy context to clipboard as well (fallback)
   vim.fn.setreg("+", ctx)
 

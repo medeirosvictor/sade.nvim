@@ -1,5 +1,5 @@
 --- pi coding agent provider.
---- Uses --append-system-prompt to inject context from a file.
+--- Uses -p for non-interactive mode with appended context.
 ---@type SadeProvider
 return {
   id = "pi",
@@ -7,7 +7,7 @@ return {
   cmd = "pi",
   check = "pi --version",
   build_cmd = function(ctx_file, prompt)
-    local parts = { "pi" }
+    local parts = { "pi", "-p" }
     -- inject context as appended system prompt
     table.insert(parts, "--append-system-prompt " .. vim.fn.shellescape("@" .. ctx_file))
     if prompt then
