@@ -9,7 +9,8 @@ local SIGN_GROUP = "sade_heartbeat"
 local state = {
   watchers = {},           -- path → uv_fs_event_t
   timers = {},             -- path → uv_timer_t (debounce)
-  active = {},             -- path → timestamp of last change
+  active = {},             -- path → timestamp of last change (spinning)
+  stale = {},              -- path → true (changed but settled, dim indicator)
   spinner_timer = nil,     -- uv_timer_t for animation loop
   spinner_frame = 1,       -- current frame index
   ns = nil,                -- namespace id
@@ -17,7 +18,7 @@ local state = {
   batch_timer = nil,       -- timer for batching notifications
 }
 
---- Define signs for each spinner frame + settled state.
+--- Define signs for each spinner frame + stale state.
 local function ensure_signs()
   if state.ns then
     return
@@ -26,7 +27,8 @@ local function ensure_signs()
   for i, frame in ipairs(SPINNER_FRAMES) do
     vim.fn.sign_define("SadeSpinner" .. i, { text = frame, texthl = "DiagnosticWarn" })
   end
-  vim.fn.sign_define("SadeSettled", { text = "○", texthl = "DiagnosticInfo" })
+  -- dim persistent indicator for files that were changed but settled
+  vim.fn.sign_define("SadeStale", { text = "●", texthl = "DiagnosticHint" })
 end
 
 --- Find buffer number for a file path, if loaded.
@@ -78,32 +80,22 @@ local function stop_spinner()
   end
 end
 
---- Transition a file from active → settled → clear.
+--- Transition a file from active → stale (dim persistent indicator).
 ---@param filepath string
 local function settle_file(filepath)
   state.active[filepath] = nil
+  state.stale[filepath] = true
 
   -- stop spinner if no more active files
   if next(state.active) == nil then
     stop_spinner()
   end
 
-  -- show settled sign briefly
+  -- place stale sign
   local bufnr = find_buf(filepath)
   if bufnr then
     vim.fn.sign_unplace(SIGN_GROUP, { buffer = bufnr })
-    vim.fn.sign_place(0, SIGN_GROUP, "SadeSettled", bufnr, { lnum = 1, priority = 50 })
-
-    -- clear after a short fade
-    vim.defer_fn(function()
-      -- only clear if file hasn't become active again
-      if not state.active[filepath] then
-        local b = find_buf(filepath)
-        if b then
-          vim.fn.sign_unplace(SIGN_GROUP, { buffer = b })
-        end
-      end
-    end, 1000)
+    vim.fn.sign_place(0, SIGN_GROUP, "SadeStale", bufnr, { lnum = 1, priority = 50 })
   end
 end
 
@@ -112,7 +104,6 @@ end
 local function track_batch(filepath)
   state.batch[filepath] = true
 
-  -- reset the batch timer
   if state.batch_timer then
     state.batch_timer:stop()
     state.batch_timer:close()
@@ -155,12 +146,13 @@ end
 ---@param filepath string
 local function on_file_changed(filepath)
   vim.schedule(function()
+    -- promote from stale back to active if changed again
+    state.stale[filepath] = nil
     state.active[filepath] = vim.uv.now()
 
     reload_buf(filepath)
     track_batch(filepath)
 
-    -- start spinner if this is the first active file
     ensure_signs()
     start_spinner()
 
@@ -252,6 +244,7 @@ function M.stop_silent()
   end
 
   state.active = {}
+  state.stale = {}
   state.batch = {}
   vim.fn.sign_unplace(SIGN_GROUP)
 end
@@ -262,6 +255,25 @@ function M.stop()
   vim.notify("[sade] heartbeat stopped")
 end
 
+--- Clear all stale indicators (like acknowledging changes).
+function M.clear_stale()
+  state.stale = {}
+  -- remove stale signs from all buffers
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_is_loaded(buf) then
+      local signs = vim.fn.sign_getplaced(buf, { group = SIGN_GROUP })[1]
+      if signs then
+        for _, s in ipairs(signs.signs) do
+          if s.name == "SadeStale" then
+            vim.fn.sign_unplace(SIGN_GROUP, { buffer = buf, id = s.id })
+          end
+        end
+      end
+    end
+  end
+  vim.notify("[sade] stale indicators cleared")
+end
+
 --- Check if a file is currently active (being modified).
 ---@param filepath string
 ---@return boolean
@@ -269,11 +281,35 @@ function M.is_active(filepath)
   return state.active[filepath] ~= nil
 end
 
+--- Check if a file is stale (was changed, now settled).
+---@param filepath string
+---@return boolean
+function M.is_stale(filepath)
+  return state.stale[filepath] ~= nil
+end
+
+--- Check if a file has any heartbeat state (active or stale).
+---@param filepath string
+---@return boolean
+function M.is_touched(filepath)
+  return state.active[filepath] ~= nil or state.stale[filepath] ~= nil
+end
+
 --- Get all currently active file paths.
 ---@return string[]
 function M.active_files()
   local files = {}
   for path, _ in pairs(state.active) do
+    table.insert(files, path)
+  end
+  return files
+end
+
+--- Get all stale file paths.
+---@return string[]
+function M.stale_files()
+  local files = {}
+  for path, _ in pairs(state.stale) do
     table.insert(files, path)
   end
   return files

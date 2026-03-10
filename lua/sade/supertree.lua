@@ -12,7 +12,8 @@ local heartbeat = require("sade.heartbeat")
 ---@field depth number           indentation level
 ---@field expanded boolean|nil   expand/collapse state (nodes only)
 ---@field file_count number|nil  total files in node
----@field active boolean         heartbeat active
+---@field active boolean         heartbeat active (spinning)
+---@field stale boolean          heartbeat stale (changed but settled)
 
 --- Build sorted list of nodes from the index.
 ---@param idx SadeIndex
@@ -94,12 +95,14 @@ function M.build_entries(idx, expanded_state)
     end
     table.sort(resolved)
 
-    -- check if any file in the node is active
+    -- check if any file in the node is active or stale
     local node_active = false
+    local node_stale = false
     for _, fp in ipairs(resolved) do
       if heartbeat.is_active(fp) then
         node_active = true
-        break
+      elseif heartbeat.is_stale(fp) then
+        node_stale = true
       end
     end
 
@@ -112,18 +115,21 @@ function M.build_entries(idx, expanded_state)
       expanded = is_expanded,
       file_count = #resolved,
       active = node_active,
+      stale = node_stale and not node_active,
     })
 
     if is_expanded then
       for _, filepath in ipairs(resolved) do
         local rel = filepath:sub(#idx.project_root + 2)
+        local file_active = heartbeat.is_active(filepath)
         table.insert(entries, {
           type = "file",
           filepath = filepath,
           rel_path = rel,
           label = rel,
           depth = 1,
-          active = heartbeat.is_active(filepath),
+          active = file_active,
+          stale = not file_active and heartbeat.is_stale(filepath),
         })
       end
     end

@@ -60,6 +60,10 @@ function M.setup(opts)
     heartbeat.stop()
   end, { desc = "Stop SADE heartbeat file watcher" })
 
+  vim.api.nvim_create_user_command("SadeHeartbeatClear", function()
+    heartbeat.clear_stale()
+  end, { desc = "Clear stale heartbeat indicators" })
+
   if config.values.auto_init then
     vim.api.nvim_create_autocmd("VimEnter", {
       callback = function()

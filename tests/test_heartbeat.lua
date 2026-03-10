@@ -36,8 +36,8 @@ local function test_sign_definitions()
   local signs = vim.fn.sign_getdefined("SadeSpinner1")
   assert(#signs > 0, "SadeSpinner1 sign not defined")
 
-  local settled = vim.fn.sign_getdefined("SadeSettled")
-  assert(#settled > 0, "SadeSettled sign not defined")
+  local stale = vim.fn.sign_getdefined("SadeStale")
+  assert(#stale > 0, "SadeStale sign not defined")
 
   heartbeat.stop_silent()
   print("  PASS test_sign_definitions")

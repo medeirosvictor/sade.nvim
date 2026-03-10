@@ -58,6 +58,8 @@ local function apply_highlights(bufnr, entries)
     local line = i - 1
     if entry.active then
       vim.api.nvim_buf_add_highlight(bufnr, ns, "DiagnosticWarn", line, 0, -1)
+    elseif entry.stale then
+      vim.api.nvim_buf_add_highlight(bufnr, ns, "DiagnosticHint", line, 0, -1)
     elseif entry.type == "node" then
       vim.api.nvim_buf_add_highlight(bufnr, ns, "Title", line, 0, -1)
     elseif entry.type == "unmapped_header" then
