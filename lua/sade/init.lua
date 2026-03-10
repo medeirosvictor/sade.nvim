@@ -57,7 +57,7 @@ function M.setup(opts)
       return
     end
     seed.run(M.state.sade_root, M.state.project_root)
-  end, { desc = "Generate seed prompt for creating initial nodes" })
+  end, { desc = "Show seed modal with node status and seeding options" })
 
   vim.api.nvim_create_user_command("SadeAgent", function(cmd)
     if not M.state then

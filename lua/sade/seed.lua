@@ -46,6 +46,64 @@ local function collect_files(project_root)
   return files
 end
 
+--- Get modification times for node files.
+---@param sade_root string
+---@return table<string, number>
+local function get_node_mtimes(sade_root)
+  local nodes_dir = sade_root .. "/nodes"
+  local times = {}
+
+  local handle = vim.uv.fs_scandir(nodes_dir)
+  if not handle then
+    return times
+  end
+
+  while true do
+    local name, typ = vim.uv.fs_scandir_next(handle)
+    if not name then
+      break
+    end
+    if typ == "file" and name:match("%.md$") then
+      local path = nodes_dir .. "/" .. name
+      local stat = vim.uv.fs_stat(path)
+      if stat then
+        times[name:gsub("%.md$", "")] = stat.mtime
+      end
+    end
+  end
+
+  return times
+end
+
+--- Format a timestamp for display.
+---@param ts number|nil
+---@return string
+local function format_time(ts)
+  if not ts then
+    return "N/A"
+  end
+
+  local ok, sec = pcall(function()
+    return os.date("%s", ts)
+  end)
+  if not ok or not sec then
+    return "N/A"
+  end
+
+  local diff = os.time() - tonumber(sec)
+  if diff < 60 then
+    return "just now"
+  elseif diff < 3600 then
+    local mins = math.floor(diff / 60)
+    return mins .. " min" .. (mins == 1 and "" or "s") .. " ago"
+  elseif diff < 86400 then
+    local hours = math.floor(diff / 3600)
+    return hours .. " hour" .. (hours == 1 and "" or "s") .. " ago"
+  else
+    return os.date("%Y-%m-%d", ts)
+  end
+end
+
 --- Build the seed prompt.
 ---@param sade_root string
 ---@param project_root string
@@ -110,28 +168,81 @@ Output each node as a code block prefixed with its filename:
   return table.concat(parts, "\n\n---\n\n")
 end
 
---- Run :SadeSeed — build prompt, copy to clipboard, optionally invoke agent.
+--- Run :SadeSeed — show modal with status, allow seeding.
 ---@param sade_root string
 ---@param project_root string
 function M.run(sade_root, project_root)
-  local prompt = M.build_prompt(sade_root, project_root)
-
-  -- copy to clipboard
-  vim.fn.setreg("+", prompt)
-
-  -- check if agent is configured
-  local agent = require("sade.agent")
-  local agent_id = agent.get_configured()
-
-  local line_count = select(2, prompt:gsub("\n", "\n")) + 1
-
-  if agent_id then
-    -- invoke agent directly
-    agent.invoke(sade_root, nil, { prompt = prompt })
-  else
-    -- no agent configured
-    vim.notify(("[sade] seed prompt copied to clipboard (%d lines)\nNo agent configured. Run :SadeAgentSetup to pick one, then paste into your agent."):format(line_count), vim.log.levels.WARN)
+  local nodes = {}
+  local handle = vim.uv.fs_scandir(sade_root .. "/nodes")
+  if handle then
+    while true do
+      local name = vim.uv.fs_scandir_next(handle)
+      if not name then
+        break
+      end
+      if name:match("%.md$") then
+        table.insert(nodes, name:gsub("%.md$", ""))
+      end
+    end
   end
+  table.sort(nodes)
+
+  local mtimes = get_node_mtimes(sade_root)
+
+  local has_nodes = #nodes > 0
+
+  local lines = { "", "  SADE · Seed", string.rep("─", 40) }
+
+  if has_nodes then
+    table.insert(lines, "")
+    table.insert(lines, "  Current nodes: " .. #nodes)
+    table.insert(lines, "")
+    table.insert(lines, "  Last modified:")
+    for _, n in ipairs(nodes) do
+      table.insert(lines, "    • " .. n .. ": " .. format_time(mtimes[n]))
+    end
+    table.insert(lines, "")
+    table.insert(lines, "  Press 'r' to regenerate nodes (agent will overwrite)")
+    table.insert(lines, "  Press 'R' to just copy the seed prompt to clipboard")
+  else
+    table.insert(lines, "")
+    table.insert(lines, "  No nodes found.")
+    table.insert(lines, "")
+    table.insert(lines, "  Press 'r' to generate initial nodes with your agent")
+    table.insert(lines, "  Press 'R' to copy seed prompt to clipboard")
+  end
+
+  table.insert(lines, "")
+  table.insert(lines, "  Press q or Esc to close")
+
+  local ui = require("sade.ui")
+  local buf, win = ui.popup(lines, { title = "SADE · Seed" })
+
+  vim.keymap.set("n", "r", function()
+    vim.api.nvim_win_close(win, true)
+
+    local prompt = M.build_prompt(sade_root, project_root)
+    vim.fn.setreg("+", prompt)
+
+    local agent = require("sade.agent")
+    local agent_id = agent.get_configured()
+
+    if agent_id then
+      agent.invoke(sade_root, nil, { prompt = prompt })
+      vim.notify("[sade] After the agent saves nodes, run :SadeUpkeep or press R to rebuild the index")
+    else
+      vim.notify("[sade] seed prompt copied to clipboard\nNo agent configured. Run :SadeAgentSetup to pick one.", vim.log.levels.WARN)
+    end
+  end, { buffer = buf, silent = true })
+
+  vim.keymap.set("n", "R", function()
+    vim.api.nvim_win_close(win, true)
+
+    local prompt = M.build_prompt(sade_root, project_root)
+    vim.fn.setreg("+", prompt)
+    local line_count = select(2, prompt:gsub("\n", "\n")) + 1
+    vim.notify(("[sade] seed prompt copied to clipboard (%d lines)"):format(line_count))
+  end, { buffer = buf, silent = true })
 end
 
 return M
