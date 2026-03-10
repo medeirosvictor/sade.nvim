@@ -8,4 +8,4 @@ Entry point, setup, configuration, and top-level state management for sade.nvim.
 - lua/sade/config.lua
 
 ## Notes
-This is the plugin loader and user-facing setup API. Registers commands and merges user config with defaults.
+This is the plugin loader and user-facing setup API. Registers commands (:SadeInit, :SadeInfo, :SadeHeartbeatStop), merges user config with defaults, and starts heartbeat on init.

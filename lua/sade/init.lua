@@ -2,6 +2,7 @@ local config = require("sade.config")
 local project = require("sade.project")
 local parser = require("sade.parser")
 local index = require("sade.index")
+local heartbeat = require("sade.heartbeat")
 
 local M = {}
 
@@ -21,6 +22,10 @@ function M.setup(opts)
     M.info()
   end, { desc = "Show SADE status and current file's node" })
 
+  vim.api.nvim_create_user_command("SadeHeartbeatStop", function()
+    heartbeat.stop()
+  end, { desc = "Stop SADE heartbeat file watcher" })
+
   if config.values.auto_init then
     vim.api.nvim_create_autocmd("VimEnter", {
       callback = function()
@@ -34,8 +39,11 @@ function M.setup(opts)
   end
 end
 
---- Initialize: find .sade/, validate, parse nodes, build index.
+--- Initialize: find .sade/, validate, parse nodes, build index, start heartbeat.
 function M.init()
+  -- stop existing heartbeat if re-initializing
+  heartbeat.stop_silent()
+
   local sade_root, err = project.find_root()
   if not sade_root then
     vim.notify("[sade] " .. err, vim.log.levels.ERROR)
@@ -58,8 +66,10 @@ function M.init()
     index = idx,
   }
 
+  heartbeat.start(project_root)
+
   local count = #nodes
-  vim.notify(("[sade] initialized — %d node%s loaded"):format(count, count == 1 and "" or "s"))
+  vim.notify(("[sade] initialized — %d node%s loaded, heartbeat on"):format(count, count == 1 and "" or "s"))
 end
 
 --- Print current state and, if a buffer is open, its node(s).
@@ -69,11 +79,13 @@ function M.info()
     return
   end
 
+  local active = heartbeat.active_files()
   local lines = {
     "sade root: " .. M.state.sade_root,
     "project root: " .. M.state.project_root,
     "nodes: " .. vim.tbl_count(M.state.index.nodes),
     "indexed files: " .. vim.tbl_count(M.state.index.file_to_nodes),
+    "active files: " .. #active,
   }
 
   local buf_path = vim.api.nvim_buf_get_name(0)
@@ -83,6 +95,10 @@ function M.info()
       table.insert(lines, "current file nodes: " .. table.concat(node_ids, ", "))
     else
       table.insert(lines, "current file: not mapped to any node")
+    end
+
+    if heartbeat.is_active(buf_path) then
+      table.insert(lines, "current file: ACTIVE (being modified externally)")
     end
   end
 
