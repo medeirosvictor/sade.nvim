@@ -109,20 +109,43 @@ local function toggle_entry()
     ui.expanded["__unmapped__"] = not ui.expanded["__unmapped__"]
     render()
   elseif entry.type == "file" or entry.type == "unmapped_file" then
-    -- open the file in the previous window
+    -- open the file in a regular editor window
     if entry.filepath then
       local prev_win = vim.fn.win_getid(vim.fn.winnr("#"))
-      if prev_win == 0 or not vim.api.nvim_win_is_valid(prev_win) then
-        -- find first non-tree window
+
+      -- check if the alternate window is usable (not a sidebar/special buffer)
+      local function is_editor_win(w)
+        if not w or w == 0 or not vim.api.nvim_win_is_valid(w) then
+          return false
+        end
+        if w == ui.winnr then
+          return false
+        end
+        local buf = vim.api.nvim_win_get_buf(w)
+        local ft = vim.bo[buf].filetype
+        -- skip nvim-tree, sade tree, and other sidebar filetypes
+        if ft == "NvimTree" or ft == "sade_tree" or ft == "neo-tree" then
+          return false
+        end
+        return true
+      end
+
+      if not is_editor_win(prev_win) then
+        prev_win = nil
         for _, w in ipairs(vim.api.nvim_list_wins()) do
-          if w ~= ui.winnr then
+          if is_editor_win(w) then
             prev_win = w
             break
           end
         end
       end
-      if prev_win and prev_win ~= 0 then
+
+      if prev_win then
         vim.api.nvim_set_current_win(prev_win)
+        vim.cmd("edit " .. vim.fn.fnameescape(entry.filepath))
+      else
+        -- no editor window found, create a split
+        vim.cmd("wincmd l")
         vim.cmd("edit " .. vim.fn.fnameescape(entry.filepath))
       end
     end
