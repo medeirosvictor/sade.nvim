@@ -3,6 +3,7 @@ local M = {}
 local config = require("sade.config")
 local supertree = require("sade.supertree")
 local heartbeat = require("sade.heartbeat")
+local log = require("sade.log")
 
 ---@class SuperTreeUI
 local ui = {
@@ -115,7 +116,7 @@ local function render()
     apply_highlights(ui.bufnr, ui.entries)
   end)
   if not ok then
-    vim.notify("[sade] render error: " .. tostring(err), vim.log_levels.ERROR)
+    vim.notify("[sade] render error: " .. tostring(err), vim.log.levels.ERROR)
   end
 end
 
@@ -366,7 +367,7 @@ function M.refresh()
     end
   end)
   if not ok then
-    vim.notify("[sade] tree refresh error: " .. tostring(err), vim.log_levels.ERROR)
+    vim.notify("[sade] tree refresh error: " .. tostring(err), vim.log.levels.ERROR)
   end
 end
 
