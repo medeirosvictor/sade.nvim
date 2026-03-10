@@ -4,6 +4,11 @@ M.defaults = {
   -- auto-initialize on VimEnter if .sade/ found
   auto_init = true,
 
+  agent = {
+    -- agent CLI: "pi", "claude", or nil (prompts setup on first use)
+    cli = nil,
+  },
+
   tree = {
     -- default width of the Super Tree split
     width = 35,
