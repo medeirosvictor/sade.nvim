@@ -33,15 +33,20 @@ local function rebuild_and_refresh()
   })
 
   -- notify user
-  vim.notify(("[sade] nodes updated — %d nodes, %d files"):format(
-    vim.tbl_count(new_idx.nodes),
-    vim.tbl_count(new_idx.file_to_nodes)
-  ))
+  vim.schedule(function()
+    vim.notify(("[sade] nodes updated — %d nodes, %d files"):format(
+      vim.tbl_count(new_idx.nodes),
+      vim.tbl_count(new_idx.file_to_nodes)
+    ))
+  end)
 
   -- refresh super tree if open
   local supertree = require("sade.supertree_ui")
   if supertree and supertree.refresh then
-    supertree.refresh()
+    local ok, err = pcall(supertree.refresh)
+    if not ok then
+      log.error("node_watcher: refresh failed", { error = tostring(err) })
+    end
   end
 end
 
@@ -59,15 +64,21 @@ local function on_changed(err, filename, events)
     return
   end
 
-  -- only care about .md files in nodes/
+  log.debug("node_watcher: raw event", { filename = filename, events = events })
+
+  -- only care about .md files
   if not filename:match("%.md$") then
     return
   end
-  if not filename:match("^nodes/") and not filename:match("/nodes/") then
+
+  -- check if it's in nodes/ directory
+  local in_nodes = filename:match("nodes/") or filename:match("^nodes/")
+  if not in_nodes then
+    log.debug("node_watcher: not in nodes dir, ignoring", { filename = filename })
     return
   end
 
-  log.debug("node_watcher: change detected", { filename = filename, events = events })
+  log.info("node_watcher: node file changed", { filename = filename })
 
   -- debounce: don't rebuild on every single write
   if state.timer then
@@ -76,7 +87,7 @@ local function on_changed(err, filename, events)
   end
 
   state.timer = vim.uv.new_timer()
-  state.timer:start(300, 0, function()
+  state.timer:start(200, 0, function()
     state.timer:stop()
     state.timer:close()
     state.timer = nil
@@ -85,7 +96,7 @@ local function on_changed(err, filename, events)
   end)
 end
 
---- Start watching the .sade/nodes directory for changes.
+--- Start watching the .sade directory for changes.
 ---@param sade_root string  absolute path to .sade/
 ---@param project_root string  absolute path to project root
 function M.start(sade_root, project_root)
@@ -97,12 +108,13 @@ function M.start(sade_root, project_root)
   state.sade_root = sade_root
   state.project_root = project_root
 
-  local nodes_dir = sade_root .. "/nodes"
+  -- watch the .sade directory itself (not just nodes/)
+  local watch_dir = sade_root
 
-  -- check if nodes directory exists
-  local stat = vim.uv.fs_stat(nodes_dir)
+  -- check if directory exists
+  local stat = vim.uv.fs_stat(watch_dir)
   if not stat then
-    log.debug("node_watcher: nodes directory does not exist", { nodes_dir = nodes_dir })
+    log.debug("node_watcher: sade directory does not exist", { watch_dir = watch_dir })
     return
   end
 
@@ -113,7 +125,7 @@ function M.start(sade_root, project_root)
   end
 
   local ok, err = pcall(function()
-    state.watcher:start(nodes_dir, { recursive = true }, on_changed)
+    state.watcher:start(watch_dir, { recursive = true }, on_changed)
   end)
 
   if not ok then
@@ -123,7 +135,7 @@ function M.start(sade_root, project_root)
     return
   end
 
-  log.info("node_watcher: started", { nodes_dir = nodes_dir })
+  log.info("node_watcher: started", { watch_dir = watch_dir })
 end
 
 --- Stop watching for node changes.

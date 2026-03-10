@@ -54,54 +54,64 @@ end
 ---@param bufnr number
 ---@param entries SuperTreeEntry[]
 local function apply_highlights(bufnr, entries)
-  local ns = vim.api.nvim_create_namespace("sade_supertree_hl")
-  vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
+  local ok, err = pcall(function()
+    local ns = vim.api.nvim_create_namespace("sade_supertree_hl")
+    vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
 
-  for i, entry in ipairs(entries) do
-    local line = i - 1
-    if entry.type == "agent_running" then
-      vim.api.nvim_buf_add_highlight(bufnr, ns, "DiagnosticWarn", line, 0, -1)
-    elseif entry.active then
-      vim.api.nvim_buf_add_highlight(bufnr, ns, "DiagnosticWarn", line, 0, -1)
-    elseif entry.stale then
-      vim.api.nvim_buf_add_highlight(bufnr, ns, "DiagnosticHint", line, 0, -1)
-    elseif entry.type == "node" then
-      vim.api.nvim_buf_add_highlight(bufnr, ns, "Title", line, 0, -1)
-    elseif entry.type == "unmapped_header" then
-      vim.api.nvim_buf_add_highlight(bufnr, ns, "Comment", line, 0, -1)
-    elseif entry.type == "unmapped_file" then
-      vim.api.nvim_buf_add_highlight(bufnr, ns, "Comment", line, 0, -1)
+    for i, entry in ipairs(entries) do
+      local line = i - 1
+      if entry.type == "agent_running" then
+        vim.api.nvim_buf_add_highlight(bufnr, ns, "DiagnosticWarn", line, 0, -1)
+      elseif entry.active then
+        vim.api.nvim_buf_add_highlight(bufnr, ns, "DiagnosticWarn", line, 0, -1)
+      elseif entry.stale then
+        vim.api.nvim_buf_add_highlight(bufnr, ns, "DiagnosticHint", line, 0, -1)
+      elseif entry.type == "node" then
+        vim.api.nvim_buf_add_highlight(bufnr, ns, "Title", line, 0, -1)
+      elseif entry.type == "unmapped_header" then
+        vim.api.nvim_buf_add_highlight(bufnr, ns, "Comment", line, 0, -1)
+      elseif entry.type == "unmapped_file" then
+        vim.api.nvim_buf_add_highlight(bufnr, ns, "Comment", line, 0, -1)
+      end
     end
+  end)
+  if not ok then
+    log.error("apply_highlights failed", { error = tostring(err) })
   end
 end
 
 --- Render the tree into the buffer.
 local function render()
-  if not ui.bufnr or not vim.api.nvim_buf_is_valid(ui.bufnr) then
-    return
+  local ok, err = pcall(function()
+    if not ui.bufnr or not vim.api.nvim_buf_is_valid(ui.bufnr) then
+      return
+    end
+
+    -- always use the current index from sade.state (supports live updates)
+    local sade = require("sade")
+    if not sade.state or not sade.state.index then
+      return
+    end
+
+    -- check if agent is running
+    local agent_running = sade.state and sade.state.agent_running or nil
+
+    ui.entries = supertree.build_entries(sade.state.index, ui.expanded, agent_running)
+
+    local lines = {}
+    for _, entry in ipairs(ui.entries) do
+      table.insert(lines, render_line(entry))
+    end
+
+    vim.bo[ui.bufnr].modifiable = true
+    vim.api.nvim_buf_set_lines(ui.bufnr, 0, -1, false, lines)
+    vim.bo[ui.bufnr].modifiable = false
+
+    apply_highlights(ui.bufnr, ui.entries)
+  end)
+  if not ok then
+    vim.notify("[sade] render error: " .. tostring(err), vim.log_levels.ERROR)
   end
-
-  -- always use the current index from sade.state (supports live updates)
-  local sade = require("sade")
-  if not sade.state or not sade.state.index then
-    return
-  end
-
-  -- check if agent is running
-  local agent_running = sade.state and sade.state.agent_running or nil
-
-  ui.entries = supertree.build_entries(sade.state.index, ui.expanded, agent_running)
-
-  local lines = {}
-  for _, entry in ipairs(ui.entries) do
-    table.insert(lines, render_line(entry))
-  end
-
-  vim.bo[ui.bufnr].modifiable = true
-  vim.api.nvim_buf_set_lines(ui.bufnr, 0, -1, false, lines)
-  vim.bo[ui.bufnr].modifiable = false
-
-  apply_highlights(ui.bufnr, ui.entries)
 end
 
 --- Toggle expand/collapse for the entry under cursor.
@@ -345,8 +355,13 @@ end
 
 --- Refresh the tree: re-render with current index.
 function M.refresh()
-  if ui.bufnr and vim.api.nvim_buf_is_valid(ui.bufnr) then
-    render()
+  local ok, err = pcall(function()
+    if ui.bufnr and vim.api.nvim_buf_is_valid(ui.bufnr) then
+      render()
+    end
+  end)
+  if not ok then
+    vim.notify("[sade] tree refresh error: " .. tostring(err), vim.log_levels.ERROR)
   end
 end
 
