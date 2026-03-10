@@ -1,9 +1,16 @@
 # Agent
 
-Agent CLI detection, configuration, and invocation. Bridges SADE context to external coding agents.
+Agent CLI detection, configuration, and invocation. Bridges SADE context to external coding agents via a provider system.
 
 ## Files
 - lua/sade/agent.lua
+- lua/sade/providers/base.lua
+- lua/sade/providers/pi.lua
+- lua/sade/providers/claude.lua
+- lua/sade/providers/codex.lua
+- lua/sade/providers/opencode.lua
+- lua/sade/providers/ollama.lua
+- lua/sade/providers/gemini.lua
 
 ## Notes
-Detects available agent CLIs (pi, claude) via version checks. User picks one via `:SadeAgentSetup`. `:SadeAgent` assembles context for the current file or a Super Tree node, writes it to a temp file, copies to clipboard, and opens the agent in a toggleterm float. Falls back to a plain terminal split if toggleterm isn't installed.
+Each provider in `providers/` defines how to invoke its CLI with context. `agent.lua` loads all providers, detects which are installed, and handles invocation. Provider interface: `id`, `name`, `cmd`, `check`, `build_cmd(ctx_file, prompt)`. Context injection strategy varies by CLI: `--append-system-prompt` (pi, claude), `--instructions` (codex), `--file` (opencode), `-s` system instruction (gemini), inline prompt (ollama).

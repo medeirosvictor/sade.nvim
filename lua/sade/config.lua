@@ -5,8 +5,10 @@ M.defaults = {
   auto_init = true,
 
   agent = {
-    -- agent CLI: "pi", "claude", or nil (prompts setup on first use)
+    -- agent CLI: "pi", "claude", "codex", "opencode", "gemini", "ollama", or nil
     cli = nil,
+    -- model for ollama provider (default: codellama)
+    ollama_model = "codellama",
   },
 
   tree = {
