@@ -411,6 +411,10 @@ function M.show_actions()
   local sorters = require("telescope.sorters")
   local action_state = require("telescope.actions.state")
 
+  -- Calculate appropriate height based on number of actions (max 12, min 8)
+  local num_actions = #actions
+  local picker_height = math.min(math.max(num_actions + 4, 8), 12)
+
   local picker = pickers.new({}, {
     prompt_title = title,
     results_title = node_desc .. files_list,
@@ -425,6 +429,11 @@ function M.show_actions()
       end,
     }),
     sorter = sorters.get_generic_fuzzy_sorter(),
+    layout_config = {
+      height = picker_height,
+      width = 60,
+      preview_cutoff = 0,
+    },
     attach_mappings = function(prompt_bufnr, map)
       -- Run action on selection
       local function run_sel()

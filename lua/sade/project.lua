@@ -1,33 +1,5 @@
+local templates = require("sade.templates")
 local M = {}
-
---- Default AGENTS.md template for new projects
-M.AGENTS_TEMPLATE = [[
-# AGENTS.md
-
-This file contains instructions for coding agents working on this project.
-
-## SADE Integration
-
-This project uses [SADE](https://github.com/medeirosvictor/sade.nvim) for architecture management.
-
-### For Agents
-
-When working on this codebase:
-
-1. **Read context** — Start by reading `.sade/README.md` and `.sade/SKILL.md`
-2. **Find relevant nodes** — Look in `.sade/nodes/` for architectural contracts
-3. **Maintain nodes** — If you create/move/delete files, update the relevant node markdown
-4. **Check health** — Run `:SadeUpkeep` or equivalent to find unmapped files
-
-### Context Injection
-
-When invoking an agent with context, it receives:
-- Project README
-- SKILL.md (coding patterns)
-- Relevant node contracts
-- Current file path
-
-]]
 
 --- Walk up from `start` to find a directory containing `.sade/`.
 --- Returns the `.sade/` absolute path, or nil + error message.
@@ -111,7 +83,7 @@ function M.ensure_agents(project_root)
   if not vim.uv.fs_stat(agents_path) then
     -- Create new AGENTS.md with template
     local project_name = vim.fn.fnamemodify(project_root, ":t")
-    local template = M.AGENTS_TEMPLATE:gsub("%%PROJECT%%", project_name)
+    local template = templates.AGENTS_TEMPLATE:gsub("%%PROJECT%%", project_name)
     local f = io.open(agents_path, "w")
     if f then
       f:write(template)
@@ -157,7 +129,7 @@ function M.scaffold(project_root)
   local agents_path = project_root .. "/AGENTS.md"
   if not vim.uv.fs_stat(agents_path) then
     -- Create new AGENTS.md with template
-    local template = M.AGENTS_TEMPLATE:gsub("%%PROJECT%%", project_name)
+    local template = templates.AGENTS_TEMPLATE:gsub("%%PROJECT%%", project_name)
     write_if_missing(agents_path, template)
   else
     -- Append SADE section to existing AGENTS.md

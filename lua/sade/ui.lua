@@ -111,12 +111,15 @@ end
 
 --- Open an input dialog with a text field.
 ---@param title string
----@param opts? { default?: string, placeholder?: string, on_submit?: fun(text: string) }
+---@param opts? { default?: string, placeholder?: string, on_submit?: fun(text: string), height?: number }
 function M.input(title, opts)
   opts = opts or {}
 
-  local width = math.floor(vim.o.columns * 0.6)
-  local height = 3
+  -- Use a more reasonable width (50% of screen, max 80 chars)
+  local max_width = 80
+  local width = math.min(math.floor(vim.o.columns * 0.5), max_width)
+  -- Allow for multi-line input (default 5 lines)
+  local height = opts.height or 5
   local row = math.floor((vim.o.lines - height) / 2)
   local col = math.floor((vim.o.columns - width) / 2)
 
@@ -140,6 +143,10 @@ function M.input(title, opts)
 
   local win = vim.api.nvim_open_win(buf, true, win_opts)
 
+  -- Enable text wrapping
+  vim.wo[win].wrap = true
+  vim.wo[win].linebreak = true
+
   -- Add placeholder/default text
   local initial_text = opts.placeholder or ""
   if opts.default then
@@ -149,7 +156,8 @@ function M.input(title, opts)
   vim.bo[buf].modifiable = true
 
   -- Position cursor at end of text
-  vim.api.nvim_win_set_cursor(win, { 1, #initial_text })
+  local line_count = initial_text:match("\n") and #vim.split(initial_text, "\n") or 1
+  vim.api.nvim_win_set_cursor(win, { line_count, 0 })
 
   local close = function()
     if vim.api.nvim_win_is_valid(win) then
@@ -159,7 +167,7 @@ function M.input(title, opts)
 
   local submit = function()
     local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-    local text = lines[1] or ""
+    local text = table.concat(lines, "\n")
     close()
     if opts.on_submit and text ~= "" then
       opts.on_submit(text)
@@ -168,11 +176,22 @@ function M.input(title, opts)
     end
   end
 
-  -- Keybindings
+  -- Keybindings: Enter to submit, Tab to add new line for multi-line, Esc/q to close
+  vim.keymap.set("i", "<Tab>", function()
+    local cursor = vim.api.nvim_win_get_cursor(win)
+    local row = cursor[1]
+    local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+    -- Insert new line after current
+    table.insert(lines, row, "")
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+    vim.api.nvim_win_set_cursor(win, { row + 1, 0 })
+  end, { buffer = buf, silent = true })
+
   vim.keymap.set("i", "<CR>", submit, { buffer = buf, silent = true })
   vim.keymap.set("i", "<Esc>", close, { buffer = buf, silent = true })
   vim.keymap.set("n", "q", close, { buffer = buf, silent = true })
   vim.keymap.set("n", "<Esc>", close, { buffer = buf, silent = true })
+  vim.keymap.set("n", "<CR>", submit, { buffer = buf, silent = true })
 end
 
 return M
