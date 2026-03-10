@@ -14,6 +14,9 @@ local ui = {
   refresh_timer = nil,   -- heartbeat refresh timer
 }
 
+-- Expose entries for node_actions
+M.entries = ui.entries
+
 local ICONS = {
   node_open = "▼ ",
   node_closed = "▶ ",
@@ -96,7 +99,9 @@ local function render()
     -- check if agent is running
     local agent_running = sade.state and sade.state.agent_running or nil
 
-    ui.entries = supertree.build_entries(sade.state.index, ui.expanded, agent_running)
+    local new_entries = supertree.build_entries(sade.state.index, ui.expanded, agent_running)
+    ui.entries = new_entries
+    M.entries = new_entries
 
     local lines = {}
     for _, entry in ipairs(ui.entries) do
