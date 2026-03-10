@@ -100,15 +100,17 @@ function M.setup(opts)
   end
 end
 
---- Initialize: find .sade/, validate, parse nodes, build index, start heartbeat.
+--- Initialize: find or create .sade/, validate, parse nodes, build index, start heartbeat.
 function M.init()
   -- stop existing heartbeat if re-initializing
   heartbeat.stop_silent()
 
-  local sade_root, err = project.find_root()
+  local sade_root = project.find_root()
   if not sade_root then
-    vim.notify("[sade] " .. err, vim.log.levels.ERROR)
-    return
+    -- no .sade/ found — scaffold one in cwd
+    local cwd = vim.uv.cwd()
+    sade_root = project.scaffold(cwd)
+    vim.notify(("[sade] created .sade/ in %s\nEdit README.md and SKILL.md, then run :SadeSeed to generate nodes"):format(cwd))
   end
 
   local ok, verr = project.validate(sade_root)
@@ -281,12 +283,8 @@ function M.guide()
     "    6. Run :SadeAgentSetup to pick your agent CLI",
     "    7. Use :SadeAgent or press 'a' in the Super Tree",
     "",
-    "  Philosophy:",
-    "",
-    "    • Agents describe what exists — they don't invent",
     "    • Nodes are responsibilities, not folders",
     "    • .sade/ is human-maintained, agent-consumed",
-    "    • No backward compatibility — the future moves fast",
     "",
     "  Press q or Esc to close",
     "",

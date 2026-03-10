@@ -42,4 +42,37 @@ function M.validate(sade_root)
   return true
 end
 
+--- Scaffold a new .sade/ directory with starter files.
+---@param project_root string  absolute path to the project root
+---@return string sade_root  absolute path to the created .sade/
+function M.scaffold(project_root)
+  local sade_root = project_root .. "/.sade"
+  vim.fn.mkdir(sade_root .. "/nodes", "p")
+
+  local function write_if_missing(path, content)
+    if not vim.uv.fs_stat(path) then
+      local f = io.open(path, "w")
+      if f then
+        f:write(content)
+        f:close()
+      end
+    end
+  end
+
+  local project_name = vim.fn.fnamemodify(project_root, ":t")
+
+  write_if_missing(sade_root .. "/README.md",
+    "# " .. project_name .. "\n\n"
+    .. "Describe what this project is and its main goals.\n")
+
+  write_if_missing(sade_root .. "/SKILL.md",
+    "# Coding Patterns\n\n"
+    .. "Describe coding style, constraints, and conventions for this project.\n\n"
+    .. "## Node Maintenance\n\n"
+    .. "When you create, move, or delete files, update the relevant `.sade/nodes/*.md`\n"
+    .. "to keep the architecture description accurate.\n")
+
+  return sade_root
+end
+
 return M

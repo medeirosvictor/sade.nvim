@@ -23,7 +23,32 @@ local function test_validate()
   print("  PASS test_validate")
 end
 
+local function test_scaffold()
+  local tmpdir = vim.fn.tempname()
+  vim.fn.mkdir(tmpdir, "p")
+
+  local sade_root = project.scaffold(tmpdir)
+  assert(sade_root == tmpdir .. "/.sade", "should return .sade path")
+  assert(vim.uv.fs_stat(sade_root .. "/nodes"), "should create nodes/")
+  assert(vim.uv.fs_stat(sade_root .. "/README.md"), "should create README.md")
+  assert(vim.uv.fs_stat(sade_root .. "/SKILL.md"), "should create SKILL.md")
+
+  -- should not overwrite existing files
+  local f = io.open(sade_root .. "/README.md", "w")
+  f:write("custom")
+  f:close()
+  project.scaffold(tmpdir)
+  f = io.open(sade_root .. "/README.md", "r")
+  local content = f:read("*a")
+  f:close()
+  assert(content == "custom", "should not overwrite existing README.md")
+
+  vim.fn.delete(tmpdir, "rf")
+  print("  PASS test_scaffold")
+end
+
 print("project:")
 test_find_root()
 test_find_root_not_found()
 test_validate()
+test_scaffold()
