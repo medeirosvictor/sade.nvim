@@ -7,8 +7,10 @@ M.defaults = {
   heartbeat = {
     -- ms to wait after last fs event before reloading buffer
     debounce_ms = 100,
-    -- ms after last change before clearing the active sign
+    -- ms after last change before transitioning to settled
     settle_ms = 2000,
+    -- ms between spinner frame updates
+    spinner_ms = 80,
   },
 }
 

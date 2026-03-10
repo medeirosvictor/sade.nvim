@@ -13,17 +13,39 @@ end
 
 local function test_start_stop()
   local plugin_root = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":h:h")
-  -- start should not error
   heartbeat.start(plugin_root)
-  -- stop should not error
   heartbeat.stop_silent()
-  -- active files should be empty after stop
   local files = heartbeat.active_files()
   assert(#files == 0, "expected no active files after stop")
   print("  PASS test_start_stop")
+end
+
+local function test_stop_idempotent()
+  -- calling stop twice should not error
+  heartbeat.stop_silent()
+  heartbeat.stop_silent()
+  print("  PASS test_stop_idempotent")
+end
+
+local function test_sign_definitions()
+  require("sade.config").setup()
+  local plugin_root = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":h:h")
+  heartbeat.start(plugin_root)
+
+  -- verify spinner signs are defined
+  local signs = vim.fn.sign_getdefined("SadeSpinner1")
+  assert(#signs > 0, "SadeSpinner1 sign not defined")
+
+  local settled = vim.fn.sign_getdefined("SadeSettled")
+  assert(#settled > 0, "SadeSettled sign not defined")
+
+  heartbeat.stop_silent()
+  print("  PASS test_sign_definitions")
 end
 
 print("heartbeat:")
 test_active_files_empty()
 test_is_active_false()
 test_start_stop()
+test_stop_idempotent()
+test_sign_definitions()
