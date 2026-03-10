@@ -151,6 +151,23 @@ local function write_context_file(ctx)
   return tmpfile
 end
 
+--- Write prompt to the sade prompts directory for tracking.
+---@param sade_root string
+---@param ctx string
+---@return string filepath
+local function write_prompt_file(sade_root, ctx)
+  local prompts_dir = sade_root .. "/tmp/prompts"
+  -- ensure directory exists
+  vim.fn.mkdir(prompts_dir, "p")
+  local prompt_file = prompts_dir .. "/last_prompt.md"
+  local f = io.open(prompt_file, "w")
+  if f then
+    f:write(ctx)
+    f:close()
+  end
+  return prompt_file
+end
+
 --- Start the throbber (spinner)
 local function start_throbber()
   if M._throbber then
@@ -246,8 +263,15 @@ function M.invoke(sade_root, idx, opts)
     end
   end
 
-  -- write context to temp file
-  local ctx_file = write_context_file(ctx)
+  -- write context to file (use prompt file for seed mode, temp file otherwise)
+  local ctx_file
+  if opts.prompt then
+    -- seed mode: write to persistent prompt file for tracking
+    ctx_file = write_prompt_file(sade_root, ctx)
+  else
+    -- normal mode: write to temp file
+    ctx_file = write_context_file(ctx)
+  end
 
   -- build command via provider
   local cmd_str = provider.build_cmd(ctx_file, opts.prompt or "")

@@ -15,39 +15,6 @@ local function read_file(filepath)
   return content
 end
 
---- Collect a flat list of project files (relative paths), skipping noise.
----@param project_root string
----@return string[]
-local function collect_files(project_root)
-  local files = {}
-  local skip = { [".git"] = true, [".sade"] = true, ["node_modules"] = true, [".next"] = true, ["dist"] = true, ["build"] = true, ["vendor"] = true, ["__pycache__"] = true }
-
-  local function scan(dir, prefix)
-    local handle = vim.uv.fs_scandir(dir)
-    if not handle then
-      return
-    end
-    while true do
-      local name, typ = vim.uv.fs_scandir_next(handle)
-      if not name then
-        break
-      end
-      if not name:match("^%.") or name == ".sade" then
-        local rel = prefix == "" and name or (prefix .. "/" .. name)
-        if typ == "directory" and not skip[name] then
-          scan(dir .. "/" .. name, rel)
-        elseif typ == "file" then
-          table.insert(files, rel)
-        end
-      end
-    end
-  end
-
-  scan(project_root, "")
-  table.sort(files)
-  return files
-end
-
 --- Get modification times for node files.
 ---@param sade_root string
 ---@return table<string, number>
@@ -161,9 +128,9 @@ Output each node as a code block prefixed with its filename:
     table.insert(parts, "## Coding Patterns\n\nSee `.sade/SKILL.md` for the coding style and conventions to follow.")
   end
 
-  -- file listing
-  local files = collect_files(project_root)
-  table.insert(parts, "## All Project Files\n\n```\n" .. table.concat(files, "\n") .. "\n```")
+  -- file listing: tell the agent to run git ls-files itself
+  -- this keeps the prompt small for large codebases
+  table.insert(parts, "## Project Files\n\nRun `git ls-files` to get the list of all project files.")
 
   table.insert(parts, "Create the node files now. Start with the files you understand best, then work through the rest.")
 
