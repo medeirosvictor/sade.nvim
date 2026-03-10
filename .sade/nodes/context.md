@@ -7,3 +7,6 @@ Assemble scoped architectural context for a file. Reads node contracts, SKILL.md
 
 ## Notes
 Given a file path, finds its node(s) via the index, reads each node's markdown, prepends project README and SKILL, appends the current file path. For unmapped files, includes a note that the file has no node. Output is a single markdown string suitable for clipboard or agent input.
+
+## Tests
+- tests/test_context.lua

@@ -132,4 +132,120 @@ Please:
 Output the simplified node as a code block, or indicate if it should be merged with another node.
 ]]
 
+--- Prompt for unmapping/removing files from a node
+M.unmap_node = [[Your task is to remove files from the architectural node file at `{node_path}`.
+
+The node currently contains:
+```
+{node_content}
+```
+
+The following files should be unmapped (removed from this node):
+```
+{files_to_unmap}
+```
+
+Please update the node's `## Files` section to remove these files. If the file was glob patterns, adjust accordingly.
+
+Output the updated node as a code block:
+]]
+
+--- Prompt for analyzing a file to find its best node(s)
+M.analyze_file = [[Your task is to analyze a file in this codebase and determine which architectural node(s) it belongs to.
+
+## File to analyze
+`{file_path}`
+
+```
+{file_content}
+```
+
+## Current Architecture
+
+The codebase has the following nodes in `.sade/nodes/`:
+
+{node_summaries}
+
+## Your task
+
+1. Read the file content above
+2. Compare it against each node's description and existing files
+3. Determine which node(s) this file belongs to, or if it needs a new node
+
+Output your analysis as:
+
+### Classification
+**Recommended node(s):** `node-name` (or "new node" / "unmapped")
+
+### Reasoning
+Brief explanation of why this file belongs to the recommended node(s).
+
+### If new node needed
+If you believe a new node is needed, provide:
+- **Node name:** (kebab-case)
+- **Description:** (what this node would own)
+- **Suggested files:** (this file + any related files that should also belong)
+]]
+
+--- Prompt for reclassifying/remapping a file to a different node
+M.reclassify_file = [[Your task is to reclassify a file from one architectural node to another (or to create a new node for it).
+
+## File to reclassify
+`{file_path}`
+
+Current node(s): `{current_nodes}`
+
+```
+{file_content}
+```
+
+## Current Architecture
+
+{node_summaries}
+
+## Your task
+
+1. Analyze the file and compare against all nodes
+2. Determine the best node(s) for this file
+3. Update the node files accordingly:
+   - Remove the file from its current node(s)
+   - Add it to the new recommended node(s), OR
+   - Create a new node if none fit
+
+If the file should remain unmapped, explain why.
+
+Output your analysis and the updated node files.
+]]
+
+--- Prompt for evaluating the entire codebase health
+M.evaluate = [[Your task is to evaluate the overall architecture health of this codebase.
+
+## Current state
+- Nodes: {node_count}
+- Indexed files: {file_count}
+- Unmapped files: {unmapped_count}
+
+## Your task
+
+Review the architecture and provide:
+
+### Health Score
+Rate from 1-10 with brief justification.
+
+### Strengths
+What is working well?
+
+### Issues
+What problems exist? (empty nodes, overlapping responsibilities, unclear boundaries, etc.)
+
+### Recommendations
+Priority list of improvements.
+
+### Node Analysis
+For each node, briefly assess:
+- Is the description clear?
+- Are the file patterns correct?
+- Does it have the right boundaries?
+]]
+
 return M

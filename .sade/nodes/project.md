@@ -7,3 +7,6 @@ Locate and validate the `.sade/` directory from the current working directory.
 
 ## Notes
 Walks up from cwd to find `.sade/`. Validates that `nodes/` and `SKILL.md` exist inside it.
+
+## Tests
+- tests/test_project.lua
