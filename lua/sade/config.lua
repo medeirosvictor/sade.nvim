@@ -4,6 +4,13 @@ M.defaults = {
   -- auto-initialize on VimEnter if .sade/ found
   auto_init = true,
 
+  tree = {
+    -- default width of the Super Tree split
+    width = 35,
+    -- side: "left" or "right"
+    side = "left",
+  },
+
   heartbeat = {
     -- ms to wait after last fs event before reloading buffer
     debounce_ms = 100,

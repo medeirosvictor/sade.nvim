@@ -1,5 +1,6 @@
 local M = {}
 
+local config = require("sade.config")
 local supertree = require("sade.supertree")
 local heartbeat = require("sade.heartbeat")
 
@@ -217,8 +218,10 @@ function M.open(idx)
   vim.bo[ui.bufnr].swapfile = false
   vim.bo[ui.bufnr].filetype = "sade_tree"
 
-  -- open as left split
-  vim.cmd("topleft vertical 35split")
+  -- open as side split
+  local tree_config = config.values.tree
+  local pos = tree_config.side == "right" and "botright" or "topleft"
+  vim.cmd(pos .. " vertical " .. tree_config.width .. "split")
   ui.winnr = vim.api.nvim_get_current_win()
   vim.api.nvim_win_set_buf(ui.winnr, ui.bufnr)
 
