@@ -149,6 +149,10 @@ function M.init()
   end
 
   local project_root = vim.fn.fnamemodify(sade_root, ":h")
+
+  -- Ensure AGENTS.md exists (create or append SADE section)
+  project.ensure_agents(project_root)
+
   local nodes = parser.parse_all(sade_root .. "/nodes")
   local idx = index.build(nodes, project_root)
 

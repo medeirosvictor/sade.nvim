@@ -1,5 +1,34 @@
 local M = {}
 
+--- Default AGENTS.md template for new projects
+M.AGENTS_TEMPLATE = [[
+# AGENTS.md
+
+This file contains instructions for coding agents working on this project.
+
+## SADE Integration
+
+This project uses [SADE](https://github.com/medeirosvictor/sade.nvim) for architecture management.
+
+### For Agents
+
+When working on this codebase:
+
+1. **Read context** — Start by reading `.sade/README.md` and `.sade/SKILL.md`
+2. **Find relevant nodes** — Look in `.sade/nodes/` for architectural contracts
+3. **Maintain nodes** — If you create/move/delete files, update the relevant node markdown
+4. **Check health** — Run `:SadeUpkeep` or equivalent to find unmapped files
+
+### Context Injection
+
+When invoking an agent with context, it receives:
+- Project README
+- SKILL.md (coding patterns)
+- Relevant node contracts
+- Current file path
+
+]]
+
 --- Walk up from `start` to find a directory containing `.sade/`.
 --- Returns the `.sade/` absolute path, or nil + error message.
 ---@param start? string  starting directory (defaults to cwd)
@@ -42,6 +71,58 @@ function M.validate(sade_root)
   return true
 end
 
+--- Append SADE section to an existing AGENTS.md file if not already present.
+---@param project_root string
+local function append_agents_section(project_root)
+  local agents_path = project_root .. "/AGENTS.md"
+  local f = io.open(agents_path, "r")
+  local existing_content = f and f:read("*a") or ""
+  if f then
+    f:close()
+  end
+
+  -- Check if SADE section already exists
+  if existing_content:match("SADE") or existing_content:match("%.sade/") then
+    return -- Already has SADE content
+  end
+
+  -- Append SADE section
+  local sade_section = [[
+
+## SADE
+
+This project uses SADE for architecture management. See `.sade/SKILL.md` for coding patterns.
+
+]]
+
+  local out = io.open(agents_path, "a")
+  if out then
+    out:write(sade_section)
+    out:close()
+  end
+end
+
+--- Ensure AGENTS.md exists in the project root.
+--- Creates a new one if missing, appends SADE section if it exists but lacks SADE.
+---@param project_root string
+function M.ensure_agents(project_root)
+  local agents_path = project_root .. "/AGENTS.md"
+
+  if not vim.uv.fs_stat(agents_path) then
+    -- Create new AGENTS.md with template
+    local project_name = vim.fn.fnamemodify(project_root, ":t")
+    local template = M.AGENTS_TEMPLATE:gsub("%%PROJECT%%", project_name)
+    local f = io.open(agents_path, "w")
+    if f then
+      f:write(template)
+      f:close()
+    end
+  else
+    -- Append SADE section to existing AGENTS.md
+    append_agents_section(project_root)
+  end
+end
+
 --- Scaffold a new .sade/ directory with starter files.
 ---@param project_root string  absolute path to the project root
 ---@return string sade_root  absolute path to the created .sade/
@@ -71,6 +152,17 @@ function M.scaffold(project_root)
     .. "## Node Maintenance\n\n"
     .. "When you create, move, or delete files, update the relevant `.sade/nodes/*.md`\n"
     .. "to keep the architecture description accurate.\n")
+
+  -- Create or append AGENTS.md
+  local agents_path = project_root .. "/AGENTS.md"
+  if not vim.uv.fs_stat(agents_path) then
+    -- Create new AGENTS.md with template
+    local template = M.AGENTS_TEMPLATE:gsub("%%PROJECT%%", project_name)
+    write_if_missing(agents_path, template)
+  else
+    -- Append SADE section to existing AGENTS.md
+    append_agents_section(project_root)
+  end
 
   return sade_root
 end
