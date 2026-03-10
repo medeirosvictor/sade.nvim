@@ -7,6 +7,7 @@ local supertree_ui = require("sade.supertree_ui")
 local context = require("sade.context")
 local seed = require("sade.seed")
 local agent = require("sade.agent")
+local sade_ui = require("sade.ui")
 
 local M = {}
 
@@ -77,6 +78,14 @@ function M.setup(opts)
   vim.api.nvim_create_user_command("SadeHeartbeatClear", function()
     heartbeat.clear_stale()
   end, { desc = "Clear stale heartbeat indicators" })
+
+  vim.api.nvim_create_user_command("SadeHelp", function()
+    M.help()
+  end, { desc = "Show SADE command reference" })
+
+  vim.api.nvim_create_user_command("SadeGuide", function()
+    M.guide()
+  end, { desc = "Show SADE philosophy and workflow guide" })
 
   if config.values.auto_init then
     vim.api.nvim_create_autocmd("VimEnter", {
@@ -155,6 +164,134 @@ function M.info()
   end
 
   vim.notify(table.concat(lines, "\n"))
+end
+
+--- Show command reference popup.
+function M.help()
+  local lines = {
+    "",
+    "  ╭─────────────────────────────────────────────────────────╮",
+    "  │                     COMMANDS                            │",
+    "  ╰─────────────────────────────────────────────────────────╯",
+    "",
+    "  :SadeInit              Initialize plugin, parse nodes, start heartbeat",
+    "  :SadeInfo              Show status: root, nodes, indexed files, current node",
+    "",
+    "  ╭─────────────────────────────────────────────────────────╮",
+    "  │                    SUPER TREE                           │",
+    "  ╰─────────────────────────────────────────────────────────╯",
+    "",
+    "  :SadeTree              Toggle the Super Tree sidebar",
+    "",
+    "    Tree keymaps:",
+    "    Enter / o            Expand/collapse node, or open file",
+    "    a                    Invoke agent on node or file",
+    "    K                    Preview node description",
+    "    R                    Refresh tree",
+    "    q                    Close tree",
+    "",
+    "  ╭─────────────────────────────────────────────────────────╮",
+    "  │                  CONTEXT & AGENTS                       │",
+    "  ╰─────────────────────────────────────────────────────────╯",
+    "",
+    "  :SadeContext           Copy current file's context to clipboard",
+    "  :SadeSeed              Generate seed prompt for initial nodes",
+    "  :SadeAgent [prompt]    Invoke agent with scoped context",
+    "  :SadeAgentSetup        Pick which agent CLI to use",
+    "",
+    "  ╭─────────────────────────────────────────────────────────╮",
+    "  │                    HEARTBEAT                            │",
+    "  ╰─────────────────────────────────────────────────────────╯",
+    "",
+    "  :SadeHeartbeatStop     Stop file watcher",
+    "  :SadeHeartbeatClear    Clear stale change indicators",
+    "",
+    "    Indicators:",
+    "    ⠋ ⠙ ⠹ ...           File actively being modified (orange, 60s)",
+    "    ●                    File was changed, now settled (dim blue)",
+    "",
+    "  ╭─────────────────────────────────────────────────────────╮",
+    "  │                      HELP                              │",
+    "  ╰─────────────────────────────────────────────────────────╯",
+    "",
+    "  :SadeHelp              This window",
+    "  :SadeGuide             Philosophy and workflow guide",
+    "",
+    "  Press q or Esc to close",
+    "",
+  }
+  sade_ui.popup(lines, { title = "SADE · Help" })
+end
+
+--- Show philosophy and workflow guide popup.
+function M.guide()
+  local lines = {
+    "",
+    "  ╭─────────────────────────────────────────────────────────────╮",
+    "  │                        S A D E                              │",
+    "  │           Software Architecture Description Engine          │",
+    "  ╰─────────────────────────────────────────────────────────────╯",
+    "",
+    "  The problem:",
+    "",
+    "    Coding agents are fast. They modify dozens of files across",
+    "    your codebase in seconds. You — the human architect — need",
+    "    to keep up. But you can't read every diff in real time.",
+    "",
+    "  The insight:",
+    "",
+    "    You don't need to see every line. You need to see which",
+    "    parts of your architecture are being touched, and trust",
+    "    that agents have the right context to make good decisions.",
+    "",
+    "  How SADE works:",
+    "",
+    "    1. You describe your architecture in .sade/nodes/*.md",
+    "       Each node is a responsibility — not a folder, but a",
+    "       concern: \"auth\", \"database\", \"api-routes\".",
+    "",
+    "    2. Heartbeat watches for changes. When an agent writes",
+    "       to files, you see which architectural nodes are active.",
+    "       Orange spinner = happening now. Blue dot = changed.",
+    "",
+    "    3. Super Tree shows your architecture, not your filesystem.",
+    "       Expand nodes to see their files. Spot unmapped files",
+    "       that need a home.",
+    "",
+    "    4. Context injection feeds the right .sade/ contracts to",
+    "       agents before they start. They know the rules for the",
+    "       part of the system they're touching.",
+    "",
+    "  The workflow:",
+    "",
+    "    ┌──────────┐     ┌──────────┐     ┌──────────┐",
+    "    │  You     │────▶│  Agent   │────▶│  You     │",
+    "    │  scope   │     │  works   │     │  review  │",
+    "    │  intent  │     │  with    │     │  via     │",
+    "    │  + node  │     │  context │     │  tree    │",
+    "    └──────────┘     └──────────┘     └──────────┘",
+    "",
+    "  Getting started:",
+    "",
+    "    1. Create .sade/ in your project root",
+    "    2. Add README.md (what the project is)",
+    "    3. Add SKILL.md (coding patterns, constraints)",
+    "    4. Run :SadeSeed to generate initial nodes",
+    "    5. Review and adjust the generated nodes/*.md",
+    "    6. Run :SadeAgentSetup to pick your agent CLI",
+    "    7. Use :SadeAgent or press 'a' in the Super Tree",
+    "",
+    "  Philosophy:",
+    "",
+    "    • Agents describe what exists — they don't invent",
+    "    • Nodes are responsibilities, not folders",
+    "    • .sade/ is human-maintained, agent-consumed",
+    "    • No backward compatibility — the future moves fast",
+    "",
+    "  Press q or Esc to close",
+    "",
+  }
+  sade_ui.popup(lines, { title = "SADE · Guide" })
 end
 
 return M

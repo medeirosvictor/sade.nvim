@@ -2,6 +2,7 @@ local M = {}
 
 local config = require("sade.config")
 local context = require("sade.context")
+local ui = require("sade.ui")
 
 --- Provider registry — loaded lazily from lua/sade/providers/*.lua
 ---@type table<string, SadeProvider>
@@ -88,15 +89,14 @@ function M.setup_interactive()
 
   local items = {}
   for _, a in ipairs(available) do
-    table.insert(items, ("%s  (%s)"):format(a.name, a.version))
+    table.insert(items, {
+      label = ("%s  ·  v%s"):format(a.name, a.version),
+      value = a.id,
+    })
   end
 
-  vim.ui.select(items, {
-    prompt = "Select agent CLI:",
-  }, function(_, idx)
-    if idx then
-      M.set(available[idx].id)
-    end
+  ui.select("SADE · Select Agent", items, function(item)
+    M.set(item.value)
   end)
 end
 
