@@ -9,7 +9,7 @@ local function test_build_prompt()
 
   assert(prompt, "prompt should not be nil")
   -- should contain the instruction header
-  assert(prompt:find("analyzing a codebase"), "should contain instructions")
+  assert(prompt:find("describe the architecture"), "should contain instructions")
   -- should contain the node format example
   assert(prompt:find("## Files"), "should contain format example")
   -- should contain project files
@@ -22,7 +22,7 @@ end
 
 local function test_prompt_includes_readme()
   local prompt = seed.build_prompt(sade_root, plugin_root)
-  assert(prompt:find("Project README"), "should include project README section")
+  assert(prompt:find("Project Overview"), "should include project README section")
   print("  PASS test_prompt_includes_readme")
 end
 

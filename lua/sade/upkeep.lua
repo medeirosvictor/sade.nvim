@@ -98,34 +98,35 @@ function M.build_refresh_prompt(sade_root, project_root, idx)
   local results = M.check(sade_root, project_root, idx)
   local parts = {}
 
-  table.insert(parts, [[You are helping maintain the architectural node files in `.sade/nodes/`.
+  table.insert(parts, [[Your task is to update the architectural node files in `.sade/nodes/` to reflect the current state of the codebase.
 
-The current state:
-- Nodes: ]] .. results.node_count .. [[
-- Indexed files: ]] .. results.file_count .. [[
+Current state: ]] .. results.node_count .. [[ nodes, ]] .. results.file_count .. [[ indexed files.
 
 ]])
 
+  -- reference the guiding files
+  table.insert(parts, "See `.sade/README.md` for the project overview and `.sade/SKILL.md` for the coding patterns to follow.\n")
+
   if #results.empty_nodes > 0 then
-    table.insert(parts, "## Empty Nodes (no files matched)\n\n")
+    table.insert(parts, "## Empty Nodes (no files matched)\n\nThese nodes exist but no files match their patterns:\n\n")
     for _, nid in ipairs(results.empty_nodes) do
       table.insert(parts, "- " .. nid .. ".md")
     end
-    table.insert(parts, "\nThese nodes have no files matching their globs. Either remove them or adjust their `## Files` patterns.")
+    table.insert(parts, "\nFix by either removing these nodes or updating their `## Files` globs to match existing files.")
   end
 
   if #results.unmapped > 0 then
-    table.insert(parts, "## Unmapped Files\n\nThese files don't belong to any node:\n\n```\n")
+    table.insert(parts, "\n## Unmapped Files\n\nThese files don't belong to any node yet:\n\n```\n")
     for _, f in ipairs(results.unmapped) do
       table.insert(parts, f)
     end
-    table.insert(parts, "```\n\nEither create new nodes for these files or add them to existing node `## Files` sections.")
+    table.insert(parts, "```\n\nFix by either creating new nodes for these files or adding them to existing nodes in their `## Files` sections.")
   end
 
   if #results.empty_nodes == 0 and #results.unmapped == 0 then
     table.insert(parts, "## Status\n\nEverything looks good! All files are mapped to nodes and all nodes have files.\n")
   else
-    table.insert(parts, "## Task\n\nUpdate the node files to fix the issues above. Be specific about which files belong to which nodes.")
+    table.insert(parts, "\n## Your Task\n\nUpdate the `.sade/nodes/*.md` files to fix the issues above. Be specific about which files belong to which nodes.")
   end
 
   return table.concat(parts, "\n")
