@@ -203,11 +203,14 @@ function M.show_actions()
     }),
     sorter = sorters.get_generic_fuzzy_sorter(),
     attach_mappings = function(prompt_bufnr, map)
-      actions_telescope.select_entry(prompt_bufnr, function(_, sel)
-        if sel and sel.value then
-          M.run_action(sel.value, node_id)
+      local action = function()
+        local selection = require("telescope.actions.state").get_selected_entry()
+        if selection and selection.value then
+          M.run_action(selection.value, node_id)
         end
-      end)
+      end
+      vim.keymap.set("i", "<CR>", action, { buffer = prompt_bufnr })
+      vim.keymap.set("n", "<CR>", action, { buffer = prompt_bufnr })
       return true
     end,
   })
