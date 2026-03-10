@@ -379,7 +379,26 @@ function M.invoke(sade_root, idx, opts)
     -- Update tracking
     if obj.code == 0 then
       M.tracking:complete(request.id, "success")
-      vim.notify("[sade] Agent completed successfully. Run :SadeUpkeep or press R to refresh.")
+
+      -- Rebuild index and refresh supertree automatically
+      local parser = require("sade.parser")
+      local idx_mod = require("sade.index")
+      local nodes = parser.parse_all(sade_root .. "/nodes")
+      local new_idx = idx_mod.build(nodes, project_root)
+
+      -- Update sade state
+      local sade = package.loaded["sade"]
+      if sade and sade.state then
+        sade.state.index = new_idx
+      end
+
+      -- Refresh supertree if open
+      local supertree = package.loaded["sade.supertree_ui"]
+      if supertree and supertree.refresh then
+        supertree.refresh()
+      end
+
+      vim.notify(("[sade] Agent completed — %d nodes indexed"):format(vim.tbl_count(new_idx.nodes)))
     else
       M.tracking:complete(request.id, "failed")
       vim.notify(("[sade] Agent exited with code %d"):format(obj.code), vim.log.levels.WARN)
