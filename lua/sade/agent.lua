@@ -5,10 +5,20 @@ local project = require("sade.project")
 local context = require("sade.context")
 local ui = require("sade.ui")
 local log = require("sade.log")
+local throbber = require("sade.throbber")
+local tracking = require("sade.tracking")
 
 --- Provider registry — loaded lazily from lua/sade/providers/*.lua
 ---@type table<string, SadeProvider>
 M.providers = {}
+
+--- Tracking for all agent requests
+---@type SadeTracking
+M.tracking = tracking.Tracking.new()
+
+--- Current throbber instance
+---@type SadeThrobber|nil
+M._throbber = nil
 
 --- Load order for display consistency.
 local PROVIDER_IDS = { "pi", "claude", "codex", "opencode", "gemini", "ollama" }
@@ -80,6 +90,8 @@ end
 function M.set(provider_id)
   ensure_providers()
   if not M.providers[provider_id] then
+    log.set_area("agent")
+    log.error("Unknown provider", { provider_id = provider_id })
     vim.notify("[sade] unknown provider: " .. provider_id, vim.log.levels.ERROR)
     return
   end
@@ -102,9 +114,13 @@ end
 
 --- Interactive setup: detect available agents, let user pick one.
 function M.setup_interactive()
+  log.set_area("agent")
+  log.info("Setting up agent interactively")
+
   local available = M.detect()
 
   if #available == 0 then
+    log.warn("No agent CLIs found", { checked = PROVIDER_IDS })
     vim.notify("[sade] no agent CLIs found (checked: " .. table.concat(PROVIDER_IDS, ", ") .. ")", vim.log.levels.WARN)
     return
   end
@@ -135,17 +151,43 @@ local function write_context_file(ctx)
   return tmpfile
 end
 
+--- Start the throbber (spinner)
+local function start_throbber()
+  if M._throbber then
+    M._throbber:stop()
+  end
+  M._throbber = throbber.Throbber.new(function(icon)
+    -- Update the statusline or a notification
+    local active = M.tracking:active_count()
+    if active > 0 then
+      vim.opt.statusline = "[sade] " .. icon .. " Agent running (" .. active .. ")"
+    end
+  end, 80)
+  M._throbber:start()
+end
+
+--- Stop the throbber
+local function stop_throbber()
+  if M._throbber then
+    M._throbber:stop()
+    M._throbber = nil
+  end
+  -- Reset statusline
+  vim.opt.statusline = ""
+end
+
 --- Invoke the agent with context for the given file or node.
 ---@param sade_root string
 ---@param idx SadeIndex
 ---@param opts? { filepath?: string, node_id?: string, prompt?: string }
 function M.invoke(sade_root, idx, opts)
   opts = opts or {}
+  log.set_area("agent")
 
   -- derive project_root from sade_root (sade_root is .sade/ directory)
   local project_root = vim.fn.fnamemodify(sade_root, ":h")
 
-  log.info("agent.invoke called", {
+  log.debug("agent.invoke called", {
     sade_root = sade_root,
     project_root = project_root,
     has_idx = idx ~= nil,
@@ -171,6 +213,7 @@ function M.invoke(sade_root, idx, opts)
   elseif opts.node_id then
     local node = idx.nodes[opts.node_id]
     if not node then
+      log.error("Unknown node", { node_id = opts.node_id })
       vim.notify("[sade] unknown node: " .. opts.node_id, vim.log.levels.ERROR)
       return
     end
@@ -197,6 +240,7 @@ function M.invoke(sade_root, idx, opts)
   else
     ctx, node_ids = context.assemble_current(sade_root, idx)
     if not ctx then
+      log.warn("No file open for context")
       vim.notify("[sade] no file open", vim.log.levels.WARN)
       return
     end
@@ -206,54 +250,89 @@ function M.invoke(sade_root, idx, opts)
   local ctx_file = write_context_file(ctx)
 
   -- build command via provider
-  local cmd_str = provider.build_cmd(ctx_file, opts.prompt)
+  local cmd_table = provider.build_cmd(ctx_file, opts.prompt or "")
 
   -- prepend cd to project root so agent runs in the right directory
-  cmd_str = "cd " .. vim.fn.shellescape(project_root) .. " && " .. cmd_str
+  local full_cmd = vim.list_extend({ "sh", "-c", "cd " .. vim.fn.shellescape(project_root) .. " && " .. table.concat(cmd_table, " ") }, {})
 
-  log.info("Agent command built", {
+  log.debug("Agent command built", {
     provider = provider.name,
-    cmd = cmd_str,
+    cmd = full_cmd,
     nodes = node_ids,
   })
 
   -- copy full command to clipboard
+  local cmd_str = "cd " .. vim.fn.shellescape(project_root) .. " && " .. table.concat(cmd_table, " ")
   vim.fn.setreg("+", cmd_str)
 
   local nodes_str = #node_ids > 0 and table.concat(node_ids, ", ") or "none"
-  log.info("Starting agent in background", { provider = provider.name, nodes = nodes_str })
+  log.info("Starting agent", { provider = provider.name, nodes = nodes_str })
 
-  -- set agent running flag for UI feedback
-  local sade = package.loaded["sade"]
-  if sade and sade.state then
-    sade.state.agent_running = vim.uv.now()
-    log.info("Agent running flag set", { timestamp = sade.state.agent_running })
+  -- Track this request
+  local request = M.tracking:track(cmd_str, provider.name)
+
+  -- Start throbber
+  start_throbber()
+
+  -- Notify user
+  vim.notify(("[sade] Agent %s running (nodes: %s)"):format(provider.name, nodes_str))
+
+  -- Run using vim.system() (modern API)
+  local proc = vim.system(full_cmd, {
+    text = true,
+    stdout = vim.schedule_wrap(function(err, data)
+      if err and err ~= "" then
+        log.debug("stdout error", { err = err })
+      end
+      if data and data ~= "" then
+        log.debug("stdout", { data = data })
+      end
+    end),
+    stderr = vim.schedule_wrap(function(err, data)
+      if err and err ~= "" then
+        log.debug("stderr error", { err = err })
+      end
+      if data and data ~= "" then
+        log.debug("stderr", { data = data })
+      end
+    end),
+  }, vim.schedule_wrap(function(obj)
+    log.info("Agent completed", { code = obj.code, signal = obj.signal })
+
+    -- Stop throbber
+    stop_throbber()
+
+    -- Clean up temp file
+    os.remove(ctx_file)
+
+    -- Update tracking
+    if obj.code == 0 then
+      M.tracking:complete(request.id, "success")
+      vim.notify("[sade] Agent completed successfully. Run :SadeUpkeep or press R to refresh.")
+    else
+      M.tracking:complete(request.id, "failed")
+      vim.notify(("[sade] Agent exited with code %d"):format(obj.code), vim.log.levels.WARN)
+    end
+  end))
+
+  -- Store proc for cancellation
+  request.proc = proc
+end
+
+--- Stop all running agent requests
+function M.stop_all()
+  log.set_area("agent")
+  log.info("Stopping all agent requests")
+
+  M.tracking:stop_all()
+  stop_throbber()
+
+  local count = M.tracking:active_count()
+  if count > 0 then
+    vim.notify(("[sade] Stopped %d agent request(s)"):format(count))
+  else
+    vim.notify("[sade] No running agents to stop")
   end
-
-  -- notify user
-  vim.notify(("[sade] Agent %s running in background (nodes: %s)\nPress R in SadeUpkeep to refresh after agent completes"):format(provider.name, nodes_str))
-
-  -- run in background using jobstart (no terminal window)
-  local job_id = vim.fn.jobstart(cmd_str, {
-    cwd = project_root,
-    on_exit = function(job, exit_code)
-      log.info("Agent job completed", { job_id = job, exit_code = exit_code })
-      -- clean up temp file
-      os.remove(ctx_file)
-      -- clear agent running flag
-      if sade and sade.state then
-        sade.state.agent_running = nil
-      end
-      -- notify user
-      if exit_code == 0 then
-        vim.notify("[sade] Agent completed successfully. Run :SadeUpkeep or press R to refresh.")
-      else
-        vim.notify(("[sade] Agent exited with code %d"):format(exit_code), vim.log.levels.WARN)
-      end
-    end,
-  })
-
-  log.info("Agent job started", { job_id = job_id })
 end
 
 return M

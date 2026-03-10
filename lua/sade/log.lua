@@ -16,6 +16,10 @@ M.levels = {
 
 M.default_level = M.levels.INFO
 
+--- Current log area (for context)
+---@type string
+M.area = "sade"
+
 --- Log file handle
 ---@type file|nil
 M.fh = nil
@@ -50,6 +54,12 @@ function M.set_level(level)
   M.level = level
 end
 
+--- Set the current log area (context)
+---@param area string
+function M.set_area(area)
+  M.area = area
+end
+
 --- Format a log entry
 ---@param level string
 ---@param msg string
@@ -57,7 +67,7 @@ end
 ---@return string
 local function format_entry(level, msg, data)
   local timestamp = os.date("%Y-%m-%d %H:%M:%S")
-  local parts = { string.format("[%s] [%s] %s", timestamp, level, msg) }
+  local parts = { string.format("[%s] [%s] [%s] %s", timestamp, level, M.area, msg) }
   if data then
     for k, v in pairs(data) do
       table.insert(parts, string.format("  %s: %s", k, vim.inspect(v)))
@@ -114,6 +124,13 @@ function M.error(msg, data)
   if M.level <= M.levels.ERROR then
     write("ERROR", msg, data)
   end
+end
+
+--- Log a fatal error
+---@param msg string
+---@param data table|nil
+function M.fatal(msg, data)
+  write("FATAL", msg, data)
 end
 
 --- Close the log file

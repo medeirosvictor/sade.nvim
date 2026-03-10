@@ -72,9 +72,16 @@ function M.setup(opts)
   end, { desc = "Invoke agent with current file's context", nargs = "?" })
 
   vim.api.nvim_create_user_command("SadeAgentSetup", function()
+    log.set_area("init")
     log.info("SadeAgentSetup command invoked")
     agent.setup_interactive()
   end, { desc = "Select which agent CLI to use" })
+
+  vim.api.nvim_create_user_command("SadeStop", function()
+    log.set_area("init")
+    log.info("SadeStop command invoked")
+    agent.stop_all()
+  end, { desc = "Stop all running agent requests" })
 
   vim.api.nvim_create_user_command("SadeHeartbeatStop", function()
     heartbeat.stop()
