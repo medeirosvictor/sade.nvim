@@ -70,4 +70,28 @@ function M.assemble_current(sade_root, idx)
   return M.assemble(sade_root, idx, buf_path)
 end
 
+--- Assemble context without a specific file (just project overview + skills).
+--- Used when no file is open but user still wants to invoke agent.
+---@param sade_root string
+---@return string context
+function M.assemble_minimal(sade_root)
+  local parts = {}
+
+  -- project overview
+  local readme = read_file(sade_root .. "/README.md")
+  if readme then
+    table.insert(parts, "# Project Overview\n\n" .. vim.trim(readme))
+  end
+
+  -- coding patterns
+  local skill = read_file(sade_root .. "/SKILL.md")
+  if skill then
+    table.insert(parts, "# Coding Patterns\n\n" .. vim.trim(skill))
+  end
+
+  table.insert(parts, "# Note\n\nNo file is currently open. Work on the codebase as a whole or specify a file.")
+
+  return table.concat(parts, "\n\n---\n\n")
+end
+
 return M

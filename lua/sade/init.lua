@@ -62,14 +62,40 @@ function M.setup(opts)
     seed.run(M.state.sade_root, M.state.project_root)
   end, { desc = "Show seed modal with node status and seeding options" })
 
-  vim.api.nvim_create_user_command("SadeAgent", function(cmd)
+  vim.api.nvim_create_user_command("SadeAgent", function()
     if not M.state then
       vim.notify("[sade] not initialized. Run :SadeInit", vim.log.levels.WARN)
       return
     end
-    local prompt = cmd.args ~= "" and cmd.args or nil
-    log.info("SadeAgent command invoked", { prompt = prompt, sade_root = M.state.sade_root })
-    agent.invoke(M.state.sade_root, M.state.index, { prompt = prompt })
+
+    -- Get current file info for context
+    local buf_path = vim.api.nvim_buf_get_name(0)
+    local idx = M.state.index
+    local node_ids = {}
+    if buf_path ~= "" then
+      node_ids = require("sade.index").query(idx, buf_path)
+    end
+
+    -- Show input dialog for prompt
+    local ui = require("sade.ui")
+    local prompt_title = "SADE · Agent"
+    local prompt_desc = ""
+    if #node_ids > 0 then
+      prompt_desc = "Nodes: " .. table.concat(node_ids, ", ")
+    elseif buf_path ~= "" then
+      prompt_desc = "No node mapped for current file"
+    else
+      prompt_desc = "No file open"
+    end
+
+    ui.input(prompt_title, {
+      placeholder = "What do you want the agent to do? (e.g., 'fix useEffect loop')",
+      default = "",
+      on_submit = function(text)
+        log.info("SadeAgent command invoked", { prompt = text, sade_root = M.state.sade_root })
+        agent.invoke(M.state.sade_root, M.state.index, { prompt = text })
+      end,
+    })
   end, { desc = "Invoke agent with current file's context", nargs = "?" })
 
   vim.api.nvim_create_user_command("SadeAgentSetup", function()
@@ -126,6 +152,47 @@ function M.setup(opts)
       once = true,
     })
   end
+
+  -- Key mappings
+  vim.keymap.set("n", "<leader>a", function()
+    if not M.state then
+      vim.notify("[sade] not initialized. Run :SadeInit", vim.log.levels.WARN)
+      return
+    end
+
+    -- Get current file info for context
+    local buf_path = vim.api.nvim_buf_get_name(0)
+    local idx = M.state.index
+    local node_ids = {}
+    if buf_path ~= "" then
+      node_ids = index.query(idx, buf_path)
+    end
+
+    -- Show input dialog for prompt
+    local prompt_title = "SADE · Agent"
+    local prompt_desc = ""
+    if #node_ids > 0 then
+      prompt_desc = "Nodes: " .. table.concat(node_ids, ", ")
+    elseif buf_path ~= "" then
+      prompt_desc = "No node mapped for current file"
+    else
+      prompt_desc = "No file open"
+    end
+
+    sade_ui.input(prompt_title, {
+      placeholder = "What do you want the agent to do?",
+      default = "",
+      on_submit = function(text)
+        log.info("SadeAgent keymap invoked", { prompt = text, sade_root = M.state.sade_root })
+        agent.invoke(M.state.sade_root, M.state.index, { prompt = text })
+      end,
+    })
+  end, { desc = "SADE: Invoke agent with context" })
+
+  -- Also map <Leader>A for uppercase variant
+  vim.keymap.set("n", "<leader>A", function()
+    vim.cmd("SadeAgent")
+  end, { desc = "SADE: Invoke agent (command)" })
 end
 
 --- Initialize: find or create .sade/, validate, parse nodes, build index, start heartbeat.
@@ -242,7 +309,7 @@ function M.help()
     "",
     "  :SadeContext           Copy current file's context to clipboard",
     "  :SadeSeed              Generate seed prompt for initial nodes",
-    "  :SadeAgent [prompt]    Invoke agent with scoped context",
+    "  :SadeAgent / <leader>a  Invoke agent with context (opens input dialog)",
     "  :SadeAgentSetup        Pick which agent CLI to use",
     "",
     "  ╭─────────────────────────────────────────────────────────╮",
@@ -333,7 +400,7 @@ function M.guide()
     "    4. Run :SadeSeed to generate initial nodes",
     "    5. Review and adjust the generated nodes/*.md",
     "    6. Run :SadeAgentSetup to pick your agent CLI",
-    "    7. Use :SadeAgent or press 'a' in the Super Tree",
+    "    7. Use :SadeAgent or <leader>a for context-aware agent",
     "",
     "    • Nodes are responsibilities, not folders",
     "    • .sade/ is human-maintained, agent-consumed",

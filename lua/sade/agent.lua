@@ -282,9 +282,9 @@ function M.invoke(sade_root, idx, opts)
   else
     ctx, node_ids = context.assemble_current(sade_root, idx)
     if not ctx then
-      log.warn("No file open for context")
-      vim.notify("[sade] no file open", vim.log.levels.WARN)
-      return
+      -- Fall back to minimal context (README + SKILL) if no file is open
+      ctx = context.assemble_minimal(sade_root)
+      node_ids = {}
     end
   end
 

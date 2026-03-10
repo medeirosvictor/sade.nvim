@@ -109,4 +109,70 @@ function M.select(title, items, on_select)
   end
 end
 
+--- Open an input dialog with a text field.
+---@param title string
+---@param opts? { default?: string, placeholder?: string, on_submit?: fun(text: string) }
+function M.input(title, opts)
+  opts = opts or {}
+
+  local width = math.floor(vim.o.columns * 0.6)
+  local height = 3
+  local row = math.floor((vim.o.lines - height) / 2)
+  local col = math.floor((vim.o.columns - width) / 2)
+
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.bo[buf].buftype = "nofile"
+  vim.bo[buf].bufhidden = "wipe"
+
+  local win_opts = {
+    relative = "editor",
+    row = row,
+    col = col,
+    width = width,
+    height = height,
+    style = "minimal",
+    border = "rounded",
+  }
+  if title then
+    win_opts.title = " " .. title .. " "
+    win_opts.title_pos = "center"
+  end
+
+  local win = vim.api.nvim_open_win(buf, true, win_opts)
+
+  -- Add placeholder/default text
+  local initial_text = opts.placeholder or ""
+  if opts.default then
+    initial_text = opts.default
+  end
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, { initial_text })
+  vim.bo[buf].modifiable = true
+
+  -- Position cursor at end of text
+  vim.api.nvim_win_set_cursor(win, { 1, #initial_text })
+
+  local close = function()
+    if vim.api.nvim_win_is_valid(win) then
+      vim.api.nvim_win_close(win, true)
+    end
+  end
+
+  local submit = function()
+    local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+    local text = lines[1] or ""
+    close()
+    if opts.on_submit and text ~= "" then
+      opts.on_submit(text)
+    elseif opts.on_submit and text == "" and opts.default then
+      opts.on_submit(opts.default)
+    end
+  end
+
+  -- Keybindings
+  vim.keymap.set("i", "<CR>", submit, { buffer = buf, silent = true })
+  vim.keymap.set("i", "<Esc>", close, { buffer = buf, silent = true })
+  vim.keymap.set("n", "q", close, { buffer = buf, silent = true })
+  vim.keymap.set("n", "<Esc>", close, { buffer = buf, silent = true })
+end
+
 return M
