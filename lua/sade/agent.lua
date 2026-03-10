@@ -168,16 +168,33 @@ local function write_prompt_file(sade_root, ctx)
   return prompt_file
 end
 
+--- Get or create the agent log file for the current session.
+---@param sade_root string
+---@return string log_path
+local function get_agent_log_path(sade_root)
+  local log_dir = sade_root .. "/tmp/logs"
+  vim.fn.mkdir(log_dir, "p")
+  return log_dir .. "/agent.log"
+end
+
 --- Start the throbber (spinner)
 local function start_throbber()
   if M._throbber then
     M._throbber:stop()
   end
   M._throbber = throbber.Throbber.new(function(icon)
-    -- Update the statusline or a notification
+    -- Update sade.state.agent_running for supertree UI
     local active = M.tracking:active_count()
     if active > 0 then
-      vim.opt.statusline = "[sade] " .. icon .. " Agent running (" .. active .. ")"
+      local sade = package.loaded["sade"]
+      if sade and sade.state then
+        sade.state.agent_running = icon
+      end
+      -- Also refresh supertree if open
+      local supertree = package.loaded["sade.supertree_ui"]
+      if supertree and supertree.refresh then
+        supertree.refresh()
+      end
     end
   end, 80)
   M._throbber:start()
@@ -189,8 +206,16 @@ local function stop_throbber()
     M._throbber:stop()
     M._throbber = nil
   end
-  -- Reset statusline
-  vim.opt.statusline = ""
+  -- Clear agent_running state
+  local sade = package.loaded["sade"]
+  if sade and sade.state then
+    sade.state.agent_running = nil
+  end
+  -- Refresh supertree to hide spinner
+  local supertree = package.loaded["sade.supertree_ui"]
+  if supertree and supertree.refresh then
+    supertree.refresh()
+  end
 end
 
 --- Invoke the agent with context for the given file or node.
@@ -301,26 +326,48 @@ function M.invoke(sade_root, idx, opts)
   -- Notify user
   vim.notify(("[sade] Agent %s running (nodes: %s)"):format(provider.name, nodes_str))
 
+  -- Get log path for this session
+  local log_path = get_agent_log_path(sade_root)
+  -- Open log file for appending
+  local log_file = io.open(log_path, "a")
+  if log_file then
+    log_file:write("\n--- Agent started at " .. os.date("%Y-%m-%d %H:%M:%S") .. " ---\n")
+    log_file:write("Nodes: " .. nodes_str .. "\n")
+    log_file:write("Context: " .. ctx_file .. "\n\n")
+    log_file:close()
+  end
+
   -- Run using vim.system() (modern API)
   local proc = vim.system(full_cmd, {
     text = true,
     stdout = vim.schedule_wrap(function(err, data)
-      if err and err ~= "" then
-        log.debug("stdout error", { err = err })
-      end
+      -- Log to file
       if data and data ~= "" then
-        log.debug("stdout", { data = data })
+        local f = io.open(log_path, "a")
+        if f then
+          f:write(data)
+          f:close()
+        end
       end
     end),
     stderr = vim.schedule_wrap(function(err, data)
-      if err and err ~= "" then
-        log.debug("stderr error", { err = err })
-      end
+      -- Log to file
       if data and data ~= "" then
-        log.debug("stderr", { data = data })
+        local f = io.open(log_path, "a")
+        if f then
+          f:write("[stderr] " .. data)
+          f:close()
+        end
       end
     end),
   }, vim.schedule_wrap(function(obj)
+    -- Append completion message to log
+    local f = io.open(log_path, "a")
+    if f then
+      f:write("\n--- Agent completed with code " .. obj.code .. " ---\n")
+      f:close()
+    end
+
     log.info("Agent completed", { code = obj.code, signal = obj.signal })
 
     -- Stop throbber
