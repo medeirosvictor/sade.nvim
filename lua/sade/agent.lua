@@ -141,6 +141,9 @@ end
 function M.invoke(sade_root, idx, opts)
   opts = opts or {}
 
+  -- derive project_root from sade_root (sade_root is .sade/ directory)
+  local project_root = vim.fn.fnamemodify(sade_root, ":h")
+
   local provider = M.get_provider()
   if not provider then
     vim.notify("[sade] no agent configured. Run :SadeAgentSetup", vim.log.levels.WARN)
