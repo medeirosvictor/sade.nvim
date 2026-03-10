@@ -309,11 +309,15 @@ function M.close()
   ui.bufnr = nil
 end
 
---- Toggle the tree open/closed.
+--- Focus the tree: open if closed, focus if open but not active, close if focused.
 ---@param idx SadeIndex
 function M.toggle(idx)
   if ui.winnr and vim.api.nvim_win_is_valid(ui.winnr) then
-    M.close()
+    if vim.api.nvim_get_current_win() == ui.winnr then
+      M.close()
+    else
+      vim.api.nvim_set_current_win(ui.winnr)
+    end
   else
     M.open(idx)
   end
