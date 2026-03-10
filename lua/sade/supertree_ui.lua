@@ -155,51 +155,56 @@ local function toggle_entry()
   end
 end
 
---- Show node description in a floating preview.
-local function preview_entry()
+--- Open the node's markdown file in an editor buffer.
+local function edit_entry()
   local cursor = vim.api.nvim_win_get_cursor(ui.winnr)
   local entry = ui.entries[cursor[1]]
   if not entry or entry.type ~= "node" then
     return
   end
 
-  local lines = { entry.label, string.rep("─", #entry.label) }
-  if entry.description and entry.description ~= "" then
-    for line in (entry.description .. "\n"):gmatch("([^\n]*)\n") do
-      table.insert(lines, line)
+  local sade = require("sade")
+  if not sade.state then
+    vim.notify("[sade] not initialized", vim.log.levels.WARN)
+    return
+  end
+
+  local node_file = sade.state.sade_root .. "/nodes/" .. entry.id .. ".md"
+
+  -- find a regular editor window to open in
+  local function is_editor_win(w)
+    if not w or not vim.api.nvim_win_is_valid(w) then
+      return false
+    end
+    if w == ui.winnr then
+      return false
+    end
+    local buf = vim.api.nvim_win_get_buf(w)
+    local ft = vim.bo[buf].filetype
+    if ft == "NvimTree" or ft == "sade_tree" or ft == "neo-tree" then
+      return false
+    end
+    return true
+  end
+
+  local prev_win = vim.fn.win_getid(vim.fn.winnr("#"))
+  if not is_editor_win(prev_win) then
+    prev_win = nil
+    for _, w in ipairs(vim.api.nvim_list_wins()) do
+      if is_editor_win(w) then
+        prev_win = w
+        break
+      end
     end
   end
-  table.insert(lines, "")
-  table.insert(lines, "Files: " .. (entry.file_count or 0))
 
-  local buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-
-  local width = 0
-  for _, l in ipairs(lines) do
-    width = math.max(width, #l)
+  if prev_win then
+    vim.api.nvim_set_current_win(prev_win)
+  else
+    vim.cmd("wincmd l")
   end
 
-  vim.api.nvim_open_win(buf, false, {
-    relative = "cursor",
-    row = 1,
-    col = 0,
-    width = math.min(width + 2, 60),
-    height = #lines,
-    style = "minimal",
-    border = "rounded",
-  })
-
-  -- close on cursor move
-  vim.api.nvim_create_autocmd({ "CursorMoved", "BufLeave" }, {
-    buffer = ui.bufnr,
-    once = true,
-    callback = function()
-      if vim.api.nvim_buf_is_valid(buf) then
-        vim.api.nvim_buf_delete(buf, { force = true })
-      end
-    end,
-  })
+  vim.cmd("edit " .. vim.fn.fnameescape(node_file))
 end
 
 --- Start periodic refresh for heartbeat state.
@@ -265,7 +270,7 @@ function M.open(idx)
   local opts = { buffer = ui.bufnr, silent = true }
   vim.keymap.set("n", "<CR>", toggle_entry, opts)
   vim.keymap.set("n", "o", toggle_entry, opts)
-  vim.keymap.set("n", "K", preview_entry, opts)
+  vim.keymap.set("n", "K", edit_entry, opts)
   vim.keymap.set("n", "q", function() M.close() end, opts)
   vim.keymap.set("n", "R", function() render() end, opts)
   vim.keymap.set("n", "a", function()

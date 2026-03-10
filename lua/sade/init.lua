@@ -7,6 +7,7 @@ local supertree_ui = require("sade.supertree_ui")
 local context = require("sade.context")
 local seed = require("sade.seed")
 local agent = require("sade.agent")
+local upkeep = require("sade.upkeep")
 local sade_ui = require("sade.ui")
 
 local M = {}
@@ -86,6 +87,14 @@ function M.setup(opts)
   vim.api.nvim_create_user_command("SadeGuide", function()
     M.guide()
   end, { desc = "Show SADE philosophy and workflow guide" })
+
+  vim.api.nvim_create_user_command("SadeUpkeep", function()
+    if not M.state then
+      vim.notify("[sade] not initialized. Run :SadeInit", vim.log.levels.WARN)
+      return
+    end
+    upkeep.run(M.state.sade_root, M.state.project_root, M.state.index)
+  end, { desc = "Check architecture health: unmapped files, empty nodes" })
 
   if config.values.auto_init then
     vim.api.nvim_create_autocmd("VimEnter", {
@@ -188,7 +197,7 @@ function M.help()
     "    Tree keymaps:",
     "    Enter / o            Expand/collapse node, or open file",
     "    a                    Invoke agent on node or file",
-    "    K                    Preview node description",
+    "    K                    Edit node markdown file",
     "    R                    Refresh tree",
     "    q                    Close tree",
     "",
@@ -200,6 +209,14 @@ function M.help()
     "  :SadeSeed              Generate seed prompt for initial nodes",
     "  :SadeAgent [prompt]    Invoke agent with scoped context",
     "  :SadeAgentSetup        Pick which agent CLI to use",
+    "",
+    "  ╭─────────────────────────────────────────────────────────╮",
+    "  │                      UPKEEP                             │",
+    "  ╰─────────────────────────────────────────────────────────╯",
+    "",
+    "  :SadeUpkeep            Check architecture health",
+    "    r                    Generate refresh prompt for agent",
+    "    R                    Rebuild index after manual edits",
     "",
     "  ╭─────────────────────────────────────────────────────────╮",
     "  │                    HEARTBEAT                            │",
