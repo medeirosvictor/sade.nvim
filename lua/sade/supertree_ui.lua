@@ -31,13 +31,16 @@ local function render_line(entry)
   local suffix = ""
 
   if entry.type == "node" or entry.type == "unmapped_header" then
-    prefix = entry.expanded and ICONS.node_open or ICONS.node_closed
     if entry.active then
-      prefix = ICONS.active .. prefix
+      prefix = ICONS.active
+    elseif entry.stale then
+      prefix = ICONS.active
+    else
+      prefix = entry.expanded and ICONS.node_open or ICONS.node_closed
     end
     suffix = "  (" .. (entry.file_count or 0) .. ")"
   elseif entry.type == "file" or entry.type == "unmapped_file" then
-    if entry.active then
+    if entry.active or entry.stale then
       prefix = ICONS.active
     else
       prefix = ICONS.file
