@@ -221,42 +221,39 @@ function M.invoke(sade_root, idx, opts)
   vim.fn.setreg("+", cmd_str)
 
   local nodes_str = #node_ids > 0 and table.concat(node_ids, ", ") or "none"
-  vim.notify(("[sade] invoking %s (nodes: %s)\nContext also copied to clipboard"):format(provider.name, nodes_str))
+  log.info("Starting agent in background", { provider = provider.name, nodes = nodes_str })
 
   -- set agent running flag for UI feedback
   local sade = package.loaded["sade"]
   if sade and sade.state then
     sade.state.agent_running = vim.uv.now()
+    log.info("Agent running flag set", { timestamp = sade.state.agent_running })
+  end
 
-    -- auto-clear after 5 minutes (assume agent is done)
-    vim.defer_fn(function()
-      if sade and sade.state and sade.state.agent_running then
+  -- notify user
+  vim.notify(("[sade] Agent %s running in background (nodes: %s)\nPress R in SadeUpkeep to refresh after agent completes"):format(provider.name, nodes_str))
+
+  -- run in background using jobstart (no terminal window)
+  local job_id = vim.fn.jobstart(cmd_str, {
+    cwd = project_root,
+    on_exit = function(job, exit_code)
+      log.info("Agent job completed", { job_id = job, exit_code = exit_code })
+      -- clean up temp file
+      os.remove(ctx_file)
+      -- clear agent running flag
+      if sade and sade.state then
         sade.state.agent_running = nil
       end
-    end, 300000)
-  end
+      -- notify user
+      if exit_code == 0 then
+        vim.notify("[sade] Agent completed successfully. Run :SadeUpkeep or press R to refresh.")
+      else
+        vim.notify(("[sade] Agent exited with code %d"):format(exit_code), vim.log.levels.WARN)
+      end
+    end,
+  })
 
-  -- use toggleterm if available, otherwise plain terminal
-  local ok, toggleterm = pcall(require, "toggleterm.terminal")
-  if ok then
-    local Terminal = toggleterm.Terminal
-    local term = Terminal:new({
-      cmd = cmd_str,
-      direction = "float",
-      float_opts = { border = "curved", width = math.floor(vim.o.columns * 0.85), height = math.floor(vim.o.lines * 0.85) },
-      close_on_exit = false,
-      on_exit = function()
-        os.remove(ctx_file)
-        -- clear agent running flag
-        if sade and sade.state then
-          sade.state.agent_running = nil
-        end
-      end,
-    })
-    term:toggle()
-  else
-    vim.cmd("botright split | terminal " .. cmd_str)
-  end
+  log.info("Agent job started", { job_id = job_id })
 end
 
 return M
