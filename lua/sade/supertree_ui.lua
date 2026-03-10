@@ -59,7 +59,9 @@ local function apply_highlights(bufnr, entries)
 
   for i, entry in ipairs(entries) do
     local line = i - 1
-    if entry.active then
+    if entry.type == "agent_running" then
+      vim.api.nvim_buf_add_highlight(bufnr, ns, "DiagnosticWarn", line, 0, -1)
+    elseif entry.active then
       vim.api.nvim_buf_add_highlight(bufnr, ns, "DiagnosticWarn", line, 0, -1)
     elseif entry.stale then
       vim.api.nvim_buf_add_highlight(bufnr, ns, "DiagnosticHint", line, 0, -1)
@@ -82,7 +84,11 @@ local function render()
     return
   end
 
-  ui.entries = supertree.build_entries(ui.idx, ui.expanded)
+  -- check if agent is running
+  local sade = require("sade")
+  local agent_running = sade.state and sade.state.agent_running or nil
+
+  ui.entries = supertree.build_entries(ui.idx, ui.expanded, agent_running)
 
   local lines = {}
   for _, entry in ipairs(ui.entries) do

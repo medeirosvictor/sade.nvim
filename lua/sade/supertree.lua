@@ -75,10 +75,21 @@ end
 --- Build the flat list of entries for rendering.
 ---@param idx SadeIndex
 ---@param expanded_state table<string, boolean>  node_id → expanded
+---@param agent_running? boolean  whether agent is currently running
 ---@return SuperTreeEntry[]
-function M.build_entries(idx, expanded_state)
+function M.build_entries(idx, expanded_state, agent_running)
   local entries = {}
   local nodes = sorted_nodes(idx)
+
+  -- show agent running indicator at top
+  if agent_running then
+    table.insert(entries, {
+      type = "agent_running",
+      label = "⚡ Agent running...",
+      depth = 0,
+      active = true,
+    })
+  end
 
   for _, node in ipairs(nodes) do
     local is_expanded = expanded_state[node.id] or false

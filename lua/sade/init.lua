@@ -13,7 +13,7 @@ local sade_ui = require("sade.ui")
 local M = {}
 
 --- Plugin state (nil until initialized)
----@type { sade_root: string, project_root: string, index: SadeIndex }|nil
+---@type { sade_root: string, project_root: string, index: SadeIndex, agent_running?: number }|nil
 M.state = nil
 
 ---@param opts? table  user config overrides

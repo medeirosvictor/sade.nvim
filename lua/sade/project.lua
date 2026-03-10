@@ -75,4 +75,35 @@ function M.scaffold(project_root)
   return sade_root
 end
 
+--- Load agent config for a project.
+---@param sade_root string
+---@return string|nil agent_cli
+function M.load_agent_config(sade_root)
+  local config_file = sade_root .. "/config.lua"
+  local f = io.open(config_file, "r")
+  if not f then
+    return nil
+  end
+  local content = f:read("*a")
+  f:close()
+
+  -- simple parse: look for agent_cli = "value"
+  local match = content:match('agent_cli%s*=%s*["\']([^"\']+)["\']')
+  return match
+end
+
+--- Save agent config for a project.
+---@param sade_root string
+---@param agent_cli string
+function M.save_agent_config(sade_root, agent_cli)
+  local config_file = sade_root .. "/config.lua"
+  local f = io.open(config_file, "w")
+  if not f then
+    return
+  end
+  f:write("-- SADE project config\n")
+  f:write("agent_cli = \"" .. agent_cli .. "\"\n")
+  f:close()
+end
+
 return M

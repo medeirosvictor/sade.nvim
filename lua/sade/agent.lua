@@ -1,6 +1,7 @@
 local M = {}
 
 local config = require("sade.config")
+local project = require("sade.project")
 local context = require("sade.context")
 local ui = require("sade.ui")
 
@@ -50,8 +51,18 @@ function M.detect()
 end
 
 --- Get the configured provider id, or nil.
+--- Checks project config first, then falls back to global config.
 ---@return string|nil
 function M.get_configured()
+  -- check for project-level config first
+  local sade = package.loaded["sade"]
+  if sade and sade.state and sade.state.sade_root then
+    local project_agent = project.load_agent_config(sade.state.sade_root)
+    if project_agent and M.providers[project_agent] then
+      return project_agent
+    end
+  end
+  -- fall back to global config
   return config.values.agent and config.values.agent.cli or nil
 end
 
@@ -71,11 +82,21 @@ function M.set(provider_id)
     vim.notify("[sade] unknown provider: " .. provider_id, vim.log.levels.ERROR)
     return
   end
+
+  -- save to global config
   if not config.values.agent then
     config.values.agent = {}
   end
   config.values.agent.cli = provider_id
-  vim.notify(("[sade] agent set to %s"):format(M.providers[provider_id].name))
+
+  -- also save to project config if initialized
+  local sade = package.loaded["sade"]
+  if sade and sade.state and sade.state.sade_root then
+    project.save_agent_config(sade.state.sade_root, provider_id)
+    vim.notify(("[sade] agent set to %s (saved to project)"):format(M.providers[provider_id].name))
+  else
+    vim.notify(("[sade] agent set to %s"):format(M.providers[provider_id].name))
+  end
 end
 
 --- Interactive setup: detect available agents, let user pick one.
@@ -175,6 +196,19 @@ function M.invoke(sade_root, idx, opts)
   local nodes_str = #node_ids > 0 and table.concat(node_ids, ", ") or "none"
   vim.notify(("[sade] invoking %s (nodes: %s)\nContext also copied to clipboard"):format(provider.name, nodes_str))
 
+  -- set agent running flag for UI feedback
+  local sade = package.loaded["sade"]
+  if sade and sade.state then
+    sade.state.agent_running = vim.uv.now()
+
+    -- auto-clear after 5 minutes (assume agent is done)
+    vim.defer_fn(function()
+      if sade and sade.state and sade.state.agent_running then
+        sade.state.agent_running = nil
+      end
+    end, 300000)
+  end
+
   -- use toggleterm if available, otherwise plain terminal
   local ok, toggleterm = pcall(require, "toggleterm.terminal")
   if ok then
@@ -186,6 +220,10 @@ function M.invoke(sade_root, idx, opts)
       close_on_exit = false,
       on_exit = function()
         os.remove(ctx_file)
+        -- clear agent running flag
+        if sade and sade.state then
+          sade.state.agent_running = nil
+        end
       end,
     })
     term:toggle()

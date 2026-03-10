@@ -13,7 +13,7 @@ M.defaults = {
 
   tree = {
     -- default width of the Super Tree split
-    width = 35,
+    width = 26,
     -- side: "left" or "right"
     side = "left",
   },
