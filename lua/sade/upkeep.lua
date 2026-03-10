@@ -167,47 +167,81 @@ function M.run(sade_root, project_root, idx)
     end
   end
 
+  local has_nodes = results.node_count > 0
+
   if #results.empty_nodes == 0 and #results.unmapped == 0 then
     table.insert(lines, "")
     table.insert(lines, "  ✓ All files mapped, all nodes populated")
   end
 
   table.insert(lines, "")
-  table.insert(lines, "  Press 'r' to run agent (or copy to clipboard if no agent)")
-  table.insert(lines, "  Press 'R' to rebuild the index (if you manually edited nodes)")
+
+  if not has_nodes then
+    table.insert(lines, "  No nodes found. Press 'r' to generate initial nodes.")
+  else
+    table.insert(lines, "  Press 'r' to run agent (or copy to clipboard if no agent)")
+  end
+  table.insert(lines, "  Press 'R' to rebuild the index")
   table.insert(lines, "  Press q or Esc to close")
 
   local ui = require("sade.ui")
   local buf, win = ui.popup(lines, { title = "SADE · Upkeep" })
 
-  vim.keymap.set("n", "r", function()
-    local prompt = M.build_refresh_prompt(sade_root, project_root, idx)
-    vim.fn.setreg("+", prompt)
-
-    -- check if agent is configured
-    local agent = require("sade.agent")
-    local agent_id = agent.get_configured()
-
-    vim.api.nvim_win_close(win, true)
-
-    if agent_id then
-      -- invoke agent directly
-      agent.invoke(sade_root, idx, { prompt = "Maintain the architectural nodes. " .. prompt })
-    else
-      -- no agent configured - notify and suggest setup
-      vim.notify("[sade] refresh prompt copied to clipboard\nNo agent configured. Run :SadeAgentSetup to pick one.", vim.log.levels.WARN)
-    end
-  end, { buffer = buf, silent = true })
-
-  vim.keymap.set("n", "R", function()
-    vim.api.nvim_win_close(win, true)
-    -- rebuild index
+  -- helper to rebuild index and refresh tree
+  local function rebuild_and_refresh()
     local parser = require("sade.parser")
     local nodes = parser.parse_all(sade_root .. "/nodes")
     local new_idx = index.build(nodes, project_root)
     local sade = require("sade")
     sade.state.index = new_idx
     vim.notify(("[sade] index rebuilt — %d nodes, %d files"):format(vim.tbl_count(new_idx.nodes), vim.tbl_count(new_idx.file_to_nodes)))
+
+    -- refresh super tree if open
+    local supertree = require("sade.supertree_ui")
+    if supertree and supertree.refresh then
+      supertree.refresh()
+    end
+  end
+
+  vim.keymap.set("n", "r", function()
+    vim.api.nvim_win_close(win, true)
+
+    -- check if agent is configured
+    local agent = require("sade.agent")
+    local agent_id = agent.get_configured()
+
+    if not has_nodes then
+      -- fresh project: run seed flow
+      local seed = require("sade.seed")
+      local prompt = seed.build_prompt(sade_root, project_root)
+      vim.fn.setreg("+", prompt)
+
+      if agent_id then
+        -- invoke agent - after it finishes, rebuild index
+        -- we can't easily hook into agent completion, so we'll notify user to run :SadeUpkeep again
+        agent.invoke(sade_root, nil, { prompt = prompt })
+        vim.notify("[sade] After the agent saves nodes, run :SadeUpkeep or press R to rebuild the index")
+      else
+        vim.notify("[sade] seed prompt copied to clipboard\nNo agent configured. Run :SadeAgentSetup to pick one.", vim.log.levels.WARN)
+      end
+      return
+    end
+
+    -- existing nodes: run upkeep flow
+    local prompt = M.build_refresh_prompt(sade_root, project_root, idx)
+    vim.fn.setreg("+", prompt)
+
+    if agent_id then
+      agent.invoke(sade_root, idx, { prompt = "Maintain the architectural nodes. " .. prompt })
+      vim.notify("[sade] After the agent saves changes, run :SadeUpkeep or press R to rebuild the index")
+    else
+      vim.notify("[sade] refresh prompt copied to clipboard\nNo agent configured. Run :SadeAgentSetup to pick one.", vim.log.levels.WARN)
+    end
+  end, { buffer = buf, silent = true })
+
+  vim.keymap.set("n", "R", function()
+    vim.api.nvim_win_close(win, true)
+    rebuild_and_refresh()
   end, { buffer = buf, silent = true })
 end
 

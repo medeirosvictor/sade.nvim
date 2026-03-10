@@ -23,8 +23,8 @@ local function test_build_refresh_prompt()
   local prompt = upkeep.build_refresh_prompt(sade_root, plugin_root, idx)
 
   assert(prompt:find("architectural node files"), "should mention node files")
-  assert(prompt:find("Nodes:"), "should mention nodes count")
-  assert(prompt:find("Indexed files:"), "should mention indexed files")
+  assert(prompt:find("Current state:"), "should mention current state")
+  assert(prompt:find("Your Task"), "should mention task")
 
   print("  PASS test_build_refresh_prompt")
 end

@@ -331,4 +331,11 @@ function M.toggle(idx)
   end
 end
 
+--- Refresh the tree: re-render with current index.
+function M.refresh()
+  if ui.bufnr and vim.api.nvim_buf_is_valid(ui.bufnr) then
+    render()
+  end
+end
+
 return M
