@@ -193,11 +193,8 @@ function M.invoke(sade_root, idx, opts)
   -- prepend cd to project root so agent runs in the right directory
   cmd_str = "cd " .. vim.fn.shellescape(project_root) .. " && " .. cmd_str
 
-  -- notify the command being run
-  vim.notify("[sade] running: " .. cmd_str, vim.log.levels.INFO)
-
-  -- copy context to clipboard as well (fallback)
-  vim.fn.setreg("+", ctx)
+  -- copy full command to clipboard
+  vim.fn.setreg("+", cmd_str)
 
   local nodes_str = #node_ids > 0 and table.concat(node_ids, ", ") or "none"
   vim.notify(("[sade] invoking %s (nodes: %s)\nContext also copied to clipboard"):format(provider.name, nodes_str))
