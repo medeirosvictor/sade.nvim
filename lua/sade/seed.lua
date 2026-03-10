@@ -1,5 +1,7 @@
 local M = {}
 
+local log = require("sade.log")
+
 --- Read a file's contents, or return nil.
 ---@param filepath string
 ---@return string|nil
@@ -67,7 +69,7 @@ local function get_node_mtimes(sade_root)
       local path = nodes_dir .. "/" .. name
       local stat = vim.uv.fs_stat(path)
       if stat then
-        times[name:gsub("%.md$", "")] = stat.mtime
+        times[(name:gsub("%.md$", ""))] = stat.mtime
       end
     end
   end
@@ -172,8 +174,11 @@ end
 ---@param sade_root string
 ---@param project_root string
 function M.run(sade_root, project_root)
+  log.info("seed.run called", { sade_root = sade_root, project_root = project_root })
+
   local nodes = {}
   local handle = vim.uv.fs_scandir(sade_root .. "/nodes")
+  log.debug("scanning nodes dir", { path = sade_root .. "/nodes", handle = handle ~= nil })
   if handle then
     while true do
       local name = vim.uv.fs_scandir_next(handle)
@@ -181,7 +186,7 @@ function M.run(sade_root, project_root)
         break
       end
       if name:match("%.md$") then
-        table.insert(nodes, name:gsub("%.md$", ""))
+        table.insert(nodes, (name:gsub("%.md$", "")))
       end
     end
   end
@@ -227,10 +232,13 @@ function M.run(sade_root, project_root)
     local agent = require("sade.agent")
     local agent_id = agent.get_configured()
 
+    log.info("seed: 'r' pressed, invoking agent", { agent_id = agent_id, prompt_len = #prompt })
+
     if agent_id then
       agent.invoke(sade_root, nil, { prompt = prompt })
       vim.notify("[sade] After the agent saves nodes, run :SadeUpkeep or press R to rebuild the index")
     else
+      log.warn("seed: no agent configured")
       vim.notify("[sade] seed prompt copied to clipboard\nNo agent configured. Run :SadeAgentSetup to pick one.", vim.log.levels.WARN)
     end
   end, { buffer = buf, silent = true })

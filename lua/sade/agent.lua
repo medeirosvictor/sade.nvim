@@ -4,6 +4,7 @@ local config = require("sade.config")
 local project = require("sade.project")
 local context = require("sade.context")
 local ui = require("sade.ui")
+local log = require("sade.log")
 
 --- Provider registry — loaded lazily from lua/sade/providers/*.lua
 ---@type table<string, SadeProvider>
@@ -144,12 +145,22 @@ function M.invoke(sade_root, idx, opts)
   -- derive project_root from sade_root (sade_root is .sade/ directory)
   local project_root = vim.fn.fnamemodify(sade_root, ":h")
 
+  log.info("agent.invoke called", {
+    sade_root = sade_root,
+    project_root = project_root,
+    has_idx = idx ~= nil,
+    opts = opts,
+  })
+
   local provider = M.get_provider()
   if not provider then
+    log.warn("No agent configured, prompting setup")
     vim.notify("[sade] no agent configured. Run :SadeAgentSetup", vim.log.levels.WARN)
     M.setup_interactive()
     return
   end
+
+  log.info("Using provider", { provider = provider.name })
 
   -- assemble context
   local ctx, node_ids
@@ -195,6 +206,12 @@ function M.invoke(sade_root, idx, opts)
 
   -- prepend cd to project root so agent runs in the right directory
   cmd_str = "cd " .. vim.fn.shellescape(project_root) .. " && " .. cmd_str
+
+  log.info("Agent command built", {
+    provider = provider.name,
+    cmd = cmd_str,
+    nodes = node_ids,
+  })
 
   -- copy full command to clipboard
   vim.fn.setreg("+", cmd_str)

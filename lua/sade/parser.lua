@@ -45,7 +45,7 @@ function M.parse_file(filepath)
   if sections["_intro"] then
     local desc = sections["_intro"]
     -- strip the # heading line itself
-    desc = desc:gsub("^#.-\n", "")
+    desc = (desc:gsub("^#.-\n", ""))
     desc = vim.trim(desc)
     node.description = desc
   end

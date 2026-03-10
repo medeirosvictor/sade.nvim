@@ -9,6 +9,7 @@ local seed = require("sade.seed")
 local agent = require("sade.agent")
 local upkeep = require("sade.upkeep")
 local sade_ui = require("sade.ui")
+local log = require("sade.log")
 
 local M = {}
 
@@ -56,6 +57,7 @@ function M.setup(opts)
       vim.notify("[sade] not initialized. Run :SadeInit", vim.log.levels.WARN)
       return
     end
+    log.info("SadeSeed command invoked", { sade_root = M.state.sade_root })
     seed.run(M.state.sade_root, M.state.project_root)
   end, { desc = "Show seed modal with node status and seeding options" })
 
@@ -65,10 +67,12 @@ function M.setup(opts)
       return
     end
     local prompt = cmd.args ~= "" and cmd.args or nil
+    log.info("SadeAgent command invoked", { prompt = prompt, sade_root = M.state.sade_root })
     agent.invoke(M.state.sade_root, M.state.index, { prompt = prompt })
   end, { desc = "Invoke agent with current file's context", nargs = "?" })
 
   vim.api.nvim_create_user_command("SadeAgentSetup", function()
+    log.info("SadeAgentSetup command invoked")
     agent.setup_interactive()
   end, { desc = "Select which agent CLI to use" })
 
@@ -93,6 +97,7 @@ function M.setup(opts)
       vim.notify("[sade] not initialized. Run :SadeInit", vim.log.levels.WARN)
       return
     end
+    log.info("SadeUpkeep command invoked", { sade_root = M.state.sade_root })
     upkeep.run(M.state.sade_root, M.state.project_root, M.state.index)
   end, { desc = "Check architecture health: unmapped files, empty nodes" })
 
@@ -132,11 +137,21 @@ function M.init()
   local nodes = parser.parse_all(sade_root .. "/nodes")
   local idx = index.build(nodes, project_root)
 
+  -- Initialize logging
+  log.init(sade_root)
+
   M.state = {
     sade_root = sade_root,
     project_root = project_root,
     index = idx,
   }
+
+  log.info("SADE initialized", {
+    sade_root = sade_root,
+    project_root = project_root,
+    node_count = #nodes,
+    file_count = vim.tbl_count(idx.file_to_nodes),
+  })
 
   heartbeat.start(project_root)
 
