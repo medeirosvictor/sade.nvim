@@ -250,10 +250,10 @@ function M.invoke(sade_root, idx, opts)
   local ctx_file = write_context_file(ctx)
 
   -- build command via provider
-  local cmd_table = provider.build_cmd(ctx_file, opts.prompt or "")
+  local cmd_str = provider.build_cmd(ctx_file, opts.prompt or "")
 
   -- prepend cd to project root so agent runs in the right directory
-  local full_cmd = vim.list_extend({ "sh", "-c", "cd " .. vim.fn.shellescape(project_root) .. " && " .. table.concat(cmd_table, " ") }, {})
+  local full_cmd = { "sh", "-c", "cd " .. vim.fn.shellescape(project_root) .. " && " .. cmd_str }
 
   log.debug("Agent command built", {
     provider = provider.name,
@@ -262,14 +262,14 @@ function M.invoke(sade_root, idx, opts)
   })
 
   -- copy full command to clipboard
-  local cmd_str = "cd " .. vim.fn.shellescape(project_root) .. " && " .. table.concat(cmd_table, " ")
-  vim.fn.setreg("+", cmd_str)
+  local clipboard_cmd = "cd " .. vim.fn.shellescape(project_root) .. " && " .. cmd_str
+  vim.fn.setreg("+", clipboard_cmd)
 
   local nodes_str = #node_ids > 0 and table.concat(node_ids, ", ") or "none"
   log.info("Starting agent", { provider = provider.name, nodes = nodes_str })
 
   -- Track this request
-  local request = M.tracking:track(cmd_str, provider.name)
+  local request = M.tracking:track(clipboard_cmd, provider.name)
 
   -- Start throbber
   start_throbber()
