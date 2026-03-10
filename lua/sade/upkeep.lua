@@ -172,7 +172,7 @@ function M.run(sade_root, project_root, idx)
   end
 
   table.insert(lines, "")
-  table.insert(lines, "  Press 'r' to generate a refresh prompt for your agent")
+  table.insert(lines, "  Press 'r' to run agent (or copy to clipboard if no agent)")
   table.insert(lines, "  Press 'R' to rebuild the index (if you manually edited nodes)")
   table.insert(lines, "  Press q or Esc to close")
 
@@ -180,10 +180,22 @@ function M.run(sade_root, project_root, idx)
   local buf, win = ui.popup(lines, { title = "SADE · Upkeep" })
 
   vim.keymap.set("n", "r", function()
-    vim.api.nvim_win_close(win, true)
     local prompt = M.build_refresh_prompt(sade_root, project_root, idx)
     vim.fn.setreg("+", prompt)
-    vim.notify("[sade] refresh prompt copied to clipboard — paste into your agent")
+
+    -- check if agent is configured
+    local agent = require("sade.agent")
+    local agent_id = agent.get_configured()
+
+    vim.api.nvim_win_close(win, true)
+
+    if agent_id then
+      -- invoke agent directly
+      agent.invoke(sade_root, idx, { prompt = "Maintain the architectural nodes. " .. prompt })
+    else
+      -- no agent configured - notify and suggest setup
+      vim.notify("[sade] refresh prompt copied to clipboard\nNo agent configured. Run :SadeAgentSetup to pick one.", vim.log.levels.WARN)
+    end
   end, { buffer = buf, silent = true })
 
   vim.keymap.set("n", "R", function()

@@ -215,7 +215,7 @@ function M.help()
     "  ╰─────────────────────────────────────────────────────────╯",
     "",
     "  :SadeUpkeep            Check architecture health",
-    "    r                    Generate refresh prompt for agent",
+    "    r                    Run agent (or copy to clipboard if no agent)",
     "    R                    Rebuild index after manual edits",
     "",
     "  ╭─────────────────────────────────────────────────────────╮",
