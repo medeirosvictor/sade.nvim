@@ -164,7 +164,11 @@ function M.invoke(sade_root, idx, opts)
 
   -- assemble context
   local ctx, node_ids
-  if opts.node_id then
+  if opts.prompt then
+    -- seed mode: use provided prompt directly, no context assembly needed
+    ctx = opts.prompt
+    node_ids = {}
+  elseif opts.node_id then
     local node = idx.nodes[opts.node_id]
     if not node then
       vim.notify("[sade] unknown node: " .. opts.node_id, vim.log.levels.ERROR)

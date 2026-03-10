@@ -30,3 +30,44 @@
   project_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim"
   file_count: 22
   sade_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+[2026-03-10 11:54:15] [INFO] sade.nvim logging initialized
+  log_file: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade/logs/nvim/sade-2026-03-10.log"
+[2026-03-10 11:54:15] [INFO] SADE initialized
+  sade_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+  file_count: 22
+  project_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim"
+  node_count: 12
+[2026-03-10 11:56:38] [INFO] sade.nvim logging initialized
+  log_file: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade/logs/nvim/sade-2026-03-10.log"
+[2026-03-10 11:56:38] [INFO] SADE initialized
+  project_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim"
+  node_count: 12
+  sade_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+  file_count: 22
+[2026-03-10 11:56:39] [INFO] agent.invoke called
+  project_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim"
+  has_idx: false
+  sade_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+  opts: {
+  prompt = "test prompt"
+}
+[2026-03-10 11:56:39] [INFO] Using provider
+  provider: "pi"
+[2026-03-10 11:56:39] [INFO] Agent command built
+  nodes: {}
+  provider: "pi"
+  cmd: "cd '/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim' && pi -p --append-system-prompt '@/var/folders/8n/cxdp9zdd7j1b077lkpcsn60m0000gn/T/nvim.victormedeiros/2sEqel/0.md' 'test prompt'"
+[2026-03-10 11:56:39] [INFO] sade.nvim logging initialized
+  log_file: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade/logs/nvim/sade-2026-03-10.log"
+[2026-03-10 11:56:39] [INFO] SADE initialized
+  project_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim"
+  node_count: 12
+  sade_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+  file_count: 22
+[2026-03-10 11:57:30] [INFO] sade.nvim logging initialized
+  log_file: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade/logs/nvim/sade-2026-03-10.log"
+[2026-03-10 11:57:30] [INFO] SADE initialized
+  sade_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+  node_count: 12
+  file_count: 22
+  project_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim"
