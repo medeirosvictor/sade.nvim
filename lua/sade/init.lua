@@ -3,6 +3,7 @@ local project = require("sade.project")
 local parser = require("sade.parser")
 local index = require("sade.index")
 local heartbeat = require("sade.heartbeat")
+local supertree_ui = require("sade.supertree_ui")
 
 local M = {}
 
@@ -21,6 +22,14 @@ function M.setup(opts)
   vim.api.nvim_create_user_command("SadeInfo", function()
     M.info()
   end, { desc = "Show SADE status and current file's node" })
+
+  vim.api.nvim_create_user_command("SadeTree", function()
+    if not M.state then
+      vim.notify("[sade] not initialized. Run :SadeInit", vim.log.levels.WARN)
+      return
+    end
+    supertree_ui.toggle(M.state.index)
+  end, { desc = "Toggle SADE Super Tree" })
 
   vim.api.nvim_create_user_command("SadeHeartbeatStop", function()
     heartbeat.stop()
