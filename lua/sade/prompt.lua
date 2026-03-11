@@ -6,9 +6,9 @@ local log = require("sade.log")
 local state = {
   bufnr = nil,
   winnr = nil,
+  legend_winnr = nil,
   on_submit = nil,
   on_cancel = nil,
-  should_close = false,
 }
 
 -- Get UI dimensions
@@ -17,23 +17,9 @@ local function get_ui_dimensions()
   return ui.width, ui.height
 end
 
--- Create centered window config
-local function create_centered_config()
-  local width, height = get_ui_dimensions()
-  local win_width = math.floor(width * 0.6)
-  local win_height = math.floor(height * 0.4)
-  return {
-    width = win_width,
-    height = win_height,
-    row = math.floor((height - win_height) / 2),
-    col = math.floor((width - win_width) / 2),
-  }
-end
-
--- Open a floating prompt window (99-style)
+-- Open a floating prompt window (99-style with legend footer)
 ---@param opts { title?: string, default_text?: string, on_submit: fun(prompt: string), on_cancel?: fun() }
 function M.open(opts)
-  -- Close any existing prompt
   M.close()
 
   local title = opts.title or "SADE"
@@ -46,21 +32,16 @@ function M.open(opts)
   state.on_submit = on_submit
   state.on_cancel = on_cancel
 
-  -- Buffer options
-  vim.bo[bufnr].buftype = "nofile"
+  -- Buffer options - use acwrite to allow BufWriteCmd
+  vim.bo[bufnr].buftype = "acwrite"
   vim.bo[bufnr].bufhidden = "wipe"
   vim.bo[bufnr].swapfile = false
   vim.bo[bufnr].filetype = "markdown"
   vim.bo[bufnr].modifiable = true
 
-  -- Add header
+  -- Add header only (no legend in buffer)
   local header = {
     "# " .. title,
-    "",
-    "Write your prompt above, then :w to submit",
-    "Press q or Escape to cancel",
-    "",
-    "────────────────────────────────────────────",
     "",
   }
 
@@ -71,14 +52,18 @@ function M.open(opts)
 
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, header)
 
-  -- Create floating window
-  local config = create_centered_config()
+  -- Create centered window config
+  local width, height = get_ui_dimensions()
+  local win_width = math.floor(width * 0.6)
+  local win_height = math.floor(height * 0.4)
+
+  -- Create main floating window
   local winnr = vim.api.nvim_open_win(bufnr, true, {
     relative = "editor",
-    width = config.width,
-    height = config.height,
-    row = config.row,
-    col = config.col,
+    width = win_width,
+    height = win_height,
+    row = math.floor((height - win_height) / 2),
+    col = math.floor((width - win_width) / 2),
     style = "minimal",
     border = "rounded",
     title = " " .. title .. " ",
@@ -91,6 +76,37 @@ function M.open(opts)
   vim.wo[winnr].wrap = true
   vim.wo[winnr].cursorline = true
   vim.wo[winnr].scrolloff = 3
+
+  -- Create legend window at the bottom (like 99)
+  local legend_height = 1
+  local legend_bufnr = vim.api.nvim_create_buf(false, true)
+  vim.bo[legend_bufnr].buftype = "nofile"
+  vim.bo[legend_bufnr].bufhidden = "wipe"
+  vim.bo[legend_bufnr].swapfile = false
+  vim.bo[legend_bufnr].modifiable = true
+
+  -- Legend text with key bindings
+  local legend_lines = { " :w / Enter = submit  ·  q / Esc = cancel " }
+  vim.api.nvim_buf_set_lines(legend_bufnr, 0, -1, false, legend_lines)
+
+  -- Position legend below main window
+  local legend_winnr = vim.api.nvim_open_win(legend_bufnr, false, {
+    relative = "editor",
+    width = #legend_lines[1] + 2,
+    height = legend_height,
+    row = math.floor((height - win_height) / 2) + win_height + 1,
+    col = math.floor((width - win_width) / 2) + 1,
+    style = "minimal",
+    border = { "", "", "", "", "", "", "", "" },
+    zindex = 100,
+  })
+
+  state.legend_winnr = legend_winnr
+
+  -- Legend window options
+  vim.wo[legend_winnr].wrap = false
+  vim.wo[legend_winnr].cursorline = false
+  vim.wo[legend_winnr].signcolumn = "no"
 
   -- Keymaps
   local map_opts = { buffer = bufnr, silent = true, noremap = true }
@@ -106,18 +122,16 @@ function M.open(opts)
     on_cancel()
   end, map_opts)
 
-  -- :w to submit
+  -- Enter to submit
   vim.keymap.set("n", "<CR>", function()
     M.submit()
   end, map_opts)
 
-  -- Custom command for :w
-  vim.api.nvim_buf_create_user_command(bufnr, "SadePromptSubmit", function()
-    M.submit()
-  end, {})
+  -- Handle :w and :wq via BufWriteCmd (acwrite requires this)
+  local group = vim.api.nvim_create_augroup("sade_prompt", { clear = true })
 
-  -- Handle :w and :wq
   vim.api.nvim_create_autocmd("BufWriteCmd", {
+    group = group,
     buffer = bufnr,
     callback = function()
       M.submit()
@@ -129,8 +143,8 @@ function M.open(opts)
     pattern = tostring(winnr),
     callback = function()
       if state.bufnr == bufnr then
-        state.bufnr = nil
-        state.winnr = nil
+        M.close()
+        on_cancel()
       end
     end,
   })
@@ -151,7 +165,7 @@ function M.submit()
   local bufnr = state.bufnr
   local all_lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
 
-  -- Skip header (lines starting with # or ─)
+  -- Skip header (lines starting with #)
   local prompt_lines = {}
   local in_header = true
   for _, line in ipairs(all_lines) do
@@ -161,8 +175,11 @@ function M.submit()
         -- Allow empty lines in header
       elseif trimmed:match("^#") then
         -- Skip title
-      elseif trimmed:match("^─") or trimmed:match("^-$") then
+      else
         in_header = false
+        if trimmed ~= "" then
+          table.insert(prompt_lines, line)
+        end
       end
     else
       table.insert(prompt_lines, line)
@@ -190,7 +207,12 @@ end
 
 -- Close the prompt without submitting
 function M.close()
-  -- Close window first
+  -- Close legend window first
+  if state.legend_winnr and vim.api.nvim_win_is_valid(state.legend_winnr) then
+    vim.api.nvim_win_close(state.legend_winnr, true)
+  end
+
+  -- Close main window
   if state.winnr and vim.api.nvim_win_is_valid(state.winnr) then
     vim.api.nvim_win_close(state.winnr, true)
   end
@@ -202,6 +224,7 @@ function M.close()
 
   state.bufnr = nil
   state.winnr = nil
+  state.legend_winnr = nil
   state.on_submit = nil
   state.on_cancel = nil
 end
