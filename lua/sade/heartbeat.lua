@@ -254,7 +254,6 @@ function M.start(project_root)
   state.spinner = spinner.Spinner.new()
   state.spinner:ensure_signs()
   watch_dir(project_root)
-  vim.notify("[sade] heartbeat started")
 end
 
 --- Stop all watchers and clear state (silent).

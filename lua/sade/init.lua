@@ -314,7 +314,6 @@ function M.init()
   node_watcher.start(sade_root, project_root)
 
   local count = #nodes
-  vim.notify(("[sade] initialized — %d node%s loaded, heartbeat on"):format(count, count == 1 and "" or "s"))
 
   -- Hint about seeding if no nodes exist
   if count == 0 then
