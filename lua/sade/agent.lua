@@ -373,12 +373,16 @@ function M.invoke(sade_root, idx, opts)
           f:close()
         end
       end
-      -- Log to file
+      -- Log to file and parse for file reads
       if data and data ~= "" then
         local f = io.open(log_path, "a")
         if f then
           f:write(data)
           f:close()
+        end
+        -- Parse for file paths → flash in super tree
+        for line in data:gmatch("[^\n]+") do
+          heartbeat.parse_agent_output(line, project_root)
         end
       end
       -- Call stdout callback if provided (for visual mode streaming)
@@ -396,12 +400,16 @@ function M.invoke(sade_root, idx, opts)
           f:close()
         end
       end
-      -- Log to file
+      -- Log to file and parse for file reads
       if data and data ~= "" then
         local f = io.open(log_path, "a")
         if f then
           f:write("[stderr] " .. data)
           f:close()
+        end
+        -- Parse for file paths → flash in super tree
+        for line in data:gmatch("[^\n]+") do
+          heartbeat.parse_agent_output(line, project_root)
         end
       end
     end),
@@ -488,10 +496,7 @@ function M.invoke(sade_root, idx, opts)
   -- Notify user
   vim.notify(("[sade] Agent %s running (nodes: %s)"):format(provider.name, nodes_str))
 
-  -- Start tracking file reads from the agent process
-  if proc and proc.pid then
-    heartbeat.track_reads(proc.pid)
-  end
+
 end
 
 --- Stop all running agent requests

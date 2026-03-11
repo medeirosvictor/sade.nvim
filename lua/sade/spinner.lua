@@ -114,25 +114,6 @@ function Spinner:clear_stale(filepath)
   end
 end
 
---- Place active read sign on a buffer (currently being read).
----@param filepath string
-function Spinner:place_read(filepath)
-  local bufnr = find_buf(filepath)
-  if bufnr then
-    vim.fn.sign_unplace(SIGN_GROUP, { buffer = bufnr })
-    vim.fn.sign_place(0, SIGN_GROUP, "SadeRead", bufnr, { lnum = 1, priority = 50 })
-  end
-end
-
---- Place stale read sign on a buffer (read but settled).
----@param filepath string
-function Spinner:place_read_stale(filepath)
-  local bufnr = find_buf(filepath)
-  if bufnr then
-    vim.fn.sign_unplace(SIGN_GROUP, { buffer = bufnr })
-    vim.fn.sign_place(0, SIGN_GROUP, "SadeReadStale", bufnr, { lnum = 1, priority = 50 })
-  end
-end
 
 --- Clear all signs.
 function Spinner:clear_all()

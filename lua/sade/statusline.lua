@@ -114,9 +114,12 @@ function M.color()
     return {}
   end
 
-  -- check heartbeat state
+  -- check heartbeat state: active > reading > stale
   if heartbeat.is_active(buf_path) then
-    return { fg = "#e0af68" } -- warm orange/yellow
+    return { fg = "#e0af68" } -- warm orange (writing)
+  end
+  if heartbeat.is_reading(buf_path) then
+    return { fg = "#7dcfff" } -- cyan (reading flash)
   end
 
   for _, nid in ipairs(node_ids) do
@@ -125,6 +128,9 @@ function M.color()
         if fid == nid then
           if heartbeat.is_active(filepath) then
             return { fg = "#e0af68" }
+          end
+          if heartbeat.is_reading(filepath) then
+            return { fg = "#7dcfff" }
           end
         end
       end

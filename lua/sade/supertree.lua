@@ -107,12 +107,15 @@ function M.build_entries(idx, expanded_state, agent_running)
     end
     table.sort(resolved)
 
-    -- check if any file in the node is active or stale
+    -- check if any file in the node is active, stale, or being read
     local node_active = false
     local node_stale = false
+    local node_reading = false
     for _, fp in ipairs(resolved) do
       if heartbeat.is_active(fp) then
         node_active = true
+      elseif heartbeat.is_reading(fp) then
+        node_reading = true
       elseif heartbeat.is_stale(fp) then
         node_stale = true
       end
@@ -127,13 +130,15 @@ function M.build_entries(idx, expanded_state, agent_running)
       expanded = is_expanded,
       file_count = #resolved,
       active = node_active,
-      stale = node_stale and not node_active,
+      reading = node_reading and not node_active,
+      stale = node_stale and not node_active and not node_reading,
     })
 
     if is_expanded then
       for _, filepath in ipairs(resolved) do
         local rel = filepath:sub(#idx.project_root + 2)
         local file_active = heartbeat.is_active(filepath)
+        local file_reading = not file_active and heartbeat.is_reading(filepath)
         table.insert(entries, {
           type = "file",
           filepath = filepath,
@@ -141,7 +146,8 @@ function M.build_entries(idx, expanded_state, agent_running)
           label = rel,
           depth = 1,
           active = file_active,
-          stale = not file_active and heartbeat.is_stale(filepath),
+          reading = file_reading,
+          stale = not file_active and not file_reading and heartbeat.is_stale(filepath),
         })
       end
     end
@@ -162,13 +168,15 @@ function M.build_entries(idx, expanded_state, agent_running)
     if expanded_state["__unmapped__"] then
       for _, filepath in ipairs(unmapped) do
         local rel = filepath:sub(#idx.project_root + 2)
+        local file_active = heartbeat.is_active(filepath)
         table.insert(entries, {
           type = "unmapped_file",
           filepath = filepath,
           rel_path = rel,
           label = rel,
           depth = 1,
-          active = heartbeat.is_active(filepath),
+          active = file_active,
+          reading = not file_active and heartbeat.is_reading(filepath),
         })
       end
     end

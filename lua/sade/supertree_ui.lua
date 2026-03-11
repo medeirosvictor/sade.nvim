@@ -18,6 +18,51 @@ local ui = {
 -- Expose entries for node_actions
 M.entries = ui.entries
 
+--- Check if a window is a regular editor window (not a sidebar).
+---@param w number window id
+---@return boolean
+local function is_editor_win(w)
+  if not w or w == 0 or not vim.api.nvim_win_is_valid(w) then
+    return false
+  end
+  if w == ui.winnr then
+    return false
+  end
+  local buf = vim.api.nvim_win_get_buf(w)
+  local ft = vim.bo[buf].filetype
+  if ft == "NvimTree" or ft == "sade_tree" or ft == "neo-tree" then
+    return false
+  end
+  return true
+end
+
+--- Find the best editor window to open a file in.
+---@return number|nil window id
+local function find_editor_win()
+  local prev_win = vim.fn.win_getid(vim.fn.winnr("#"))
+  if is_editor_win(prev_win) then
+    return prev_win
+  end
+  for _, w in ipairs(vim.api.nvim_list_wins()) do
+    if is_editor_win(w) then
+      return w
+    end
+  end
+  return nil
+end
+
+--- Open a file in the best available editor window, or create a split.
+---@param filepath string
+local function open_in_editor(filepath)
+  local win = find_editor_win()
+  if win then
+    vim.api.nvim_set_current_win(win)
+    vim.cmd("edit " .. vim.fn.fnameescape(filepath))
+  else
+    vim.cmd("belowright vsplit " .. vim.fn.fnameescape(filepath))
+  end
+end
+
 local ICONS = {
   node_open = "▼ ",
   node_closed = "▶ ",
@@ -37,6 +82,8 @@ local function render_line(entry)
   if entry.type == "node" or entry.type == "unmapped_header" then
     if entry.active then
       prefix = ICONS.active
+    elseif entry.reading then
+      prefix = "◇ "
     elseif entry.stale then
       prefix = ICONS.active
     else
@@ -46,6 +93,8 @@ local function render_line(entry)
   elseif entry.type == "file" or entry.type == "unmapped_file" then
     if entry.active or entry.stale then
       prefix = ICONS.active
+    elseif entry.reading then
+      prefix = "◇ "
     else
       prefix = ICONS.file
     end
@@ -68,6 +117,8 @@ local function apply_highlights(bufnr, entries)
         vim.api.nvim_buf_add_highlight(bufnr, ns, "DiagnosticWarn", line, 0, -1)
       elseif entry.active then
         vim.api.nvim_buf_add_highlight(bufnr, ns, "DiagnosticWarn", line, 0, -1)
+      elseif entry.reading then
+        vim.api.nvim_buf_add_highlight(bufnr, ns, "DiagnosticInfo", line, 0, -1)
       elseif entry.stale then
         vim.api.nvim_buf_add_highlight(bufnr, ns, "DiagnosticHint", line, 0, -1)
       elseif entry.type == "node" then
@@ -136,45 +187,8 @@ local function toggle_entry()
     ui.expanded["__unmapped__"] = not ui.expanded["__unmapped__"]
     render()
   elseif entry.type == "file" or entry.type == "unmapped_file" then
-    -- open the file in a regular editor window
     if entry.filepath then
-      local prev_win = vim.fn.win_getid(vim.fn.winnr("#"))
-
-      -- check if the alternate window is usable (not a sidebar/special buffer)
-      local function is_editor_win(w)
-        if not w or w == 0 or not vim.api.nvim_win_is_valid(w) then
-          return false
-        end
-        if w == ui.winnr then
-          return false
-        end
-        local buf = vim.api.nvim_win_get_buf(w)
-        local ft = vim.bo[buf].filetype
-        -- skip nvim-tree, sade tree, and other sidebar filetypes
-        if ft == "NvimTree" or ft == "sade_tree" or ft == "neo-tree" then
-          return false
-        end
-        return true
-      end
-
-      if not is_editor_win(prev_win) then
-        prev_win = nil
-        for _, w in ipairs(vim.api.nvim_list_wins()) do
-          if is_editor_win(w) then
-            prev_win = w
-            break
-          end
-        end
-      end
-
-      if prev_win then
-        vim.api.nvim_set_current_win(prev_win)
-        vim.cmd("edit " .. vim.fn.fnameescape(entry.filepath))
-      else
-        -- no editor window found, create a split
-        vim.cmd("wincmd l")
-        vim.cmd("edit " .. vim.fn.fnameescape(entry.filepath))
-      end
+      open_in_editor(entry.filepath)
     end
   end
 end
@@ -194,41 +208,7 @@ local function edit_entry()
   end
 
   local node_file = sade.state.sade_root .. "/nodes/" .. entry.id .. ".md"
-
-  -- find a regular editor window to open in
-  local function is_editor_win(w)
-    if not w or not vim.api.nvim_win_is_valid(w) then
-      return false
-    end
-    if w == ui.winnr then
-      return false
-    end
-    local buf = vim.api.nvim_win_get_buf(w)
-    local ft = vim.bo[buf].filetype
-    if ft == "NvimTree" or ft == "sade_tree" or ft == "neo-tree" then
-      return false
-    end
-    return true
-  end
-
-  local prev_win = vim.fn.win_getid(vim.fn.winnr("#"))
-  if not is_editor_win(prev_win) then
-    prev_win = nil
-    for _, w in ipairs(vim.api.nvim_list_wins()) do
-      if is_editor_win(w) then
-        prev_win = w
-        break
-      end
-    end
-  end
-
-  if prev_win then
-    vim.api.nvim_set_current_win(prev_win)
-  else
-    vim.cmd("wincmd l")
-  end
-
-  vim.cmd("edit " .. vim.fn.fnameescape(node_file))
+  open_in_editor(node_file)
 end
 
 --- Start periodic refresh for heartbeat state.
