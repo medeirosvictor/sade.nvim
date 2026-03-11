@@ -276,7 +276,10 @@ function M.open(idx)
   vim.wo[ui.winnr].foldcolumn = "0"
   vim.wo[ui.winnr].wrap = false
   vim.wo[ui.winnr].cursorline = true
-  vim.wo[ui.winnr].winfixwidth = true  -- prevent auto-resize when other windows open/close
+  vim.wo[ui.winnr].winfixwidth = true   -- prevent auto-resize
+  vim.wo[ui.winnr].winfixheight = true  -- prevent auto-resize
+  vim.wo[ui.winnr].winwidth = tree_config.width
+  vim.wo[ui.winnr].winminwidth = tree_config.width
 
   -- keymaps
   local opts = { buffer = ui.bufnr, silent = true }
