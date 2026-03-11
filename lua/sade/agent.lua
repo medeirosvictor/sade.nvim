@@ -349,6 +349,14 @@ function M.invoke(sade_root, idx, opts)
   -- Start throbber
   start_throbber()
 
+  -- Auto-stop throbber after 5 seconds (file is written, user can see content)
+  local auto_stop_timer = vim.defer_fn(function()
+    if M._throbber then
+      log.debug("Auto-stopping throbber after 5s")
+      stop_throbber()
+    end
+  end, 5000)
+
   -- Get log path for this session
   local log_path = get_agent_log_path(sade_root)
   -- Open log file for appending
