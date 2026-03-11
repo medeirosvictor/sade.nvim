@@ -39,11 +39,8 @@ function M.open(opts)
   vim.bo[bufnr].filetype = "markdown"
   vim.bo[bufnr].modifiable = true
 
-  -- Add header only (no legend in buffer)
-  local header = {
-    "# " .. title,
-    "",
-  }
+  -- Add default text only (title is in window title)
+  local header = {}
 
   if opts.default_text and opts.default_text ~= "" then
     vim.list_extend(header, vim.split(opts.default_text, "\n"))
@@ -165,21 +162,14 @@ function M.submit()
   local bufnr = state.bufnr
   local all_lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
 
-  -- Skip header (lines starting with #)
+  -- Trim leading empty lines
   local prompt_lines = {}
-  local in_header = true
+  local started = false
   for _, line in ipairs(all_lines) do
-    local trimmed = vim.trim(line)
-    if in_header then
-      if trimmed == "" then
-        -- Allow empty lines in header
-      elseif trimmed:match("^#") then
-        -- Skip title
-      else
-        in_header = false
-        if trimmed ~= "" then
-          table.insert(prompt_lines, line)
-        end
+    if not started then
+      if vim.trim(line) ~= "" then
+        started = true
+        table.insert(prompt_lines, line)
       end
     else
       table.insert(prompt_lines, line)
