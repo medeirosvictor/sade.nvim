@@ -225,4 +225,144 @@ function M.is_open()
   return state.bufnr ~= nil and vim.api.nvim_buf_is_valid(state.bufnr)
 end
 
+-- Message state (for agent responses)
+local msg_state = {
+  bufnr = nil,
+  winnr = nil,
+  legend_winnr = nil,
+}
+
+--- Show a message in a floating window (for agent responses)
+---@param opts { title?: string, content?: string[], on_close?: fun(), loading?: boolean }
+function M.show_message(opts)
+  M.close_message()
+
+  local title = opts.title or "SADE"
+  local content = opts.content or {}
+  local on_close = opts.on_close or function() end
+
+  -- Create buffer
+  local bufnr = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_name(bufnr, "sade-message")
+  msg_state.bufnr = bufnr
+
+  -- Buffer options
+  vim.bo[bufnr].buftype = "nofile"
+  vim.bo[bufnr].bufhidden = "wipe"
+  vim.bo[bufnr].swapfile = false
+  vim.bo[bufnr].filetype = "markdown"
+  vim.bo[bufnr].modifiable = true
+
+  -- Calculate window size based on content
+  local width, height = get_ui_dimensions()
+  local win_width = math.floor(width * 0.5)
+  local content_height = #content + 4 -- header + padding
+  local win_height = math.min(content_height, math.floor(height * 0.6))
+
+  -- Create main floating window
+  local winnr = vim.api.nvim_open_win(bufnr, true, {
+    relative = "editor",
+    width = win_width,
+    height = win_height,
+    row = math.floor((height - win_height) / 2),
+    col = math.floor((width - win_width) / 2),
+    style = "minimal",
+    border = "rounded",
+    title = " " .. title .. " ",
+    title_pos = "center",
+  })
+
+  msg_state.winnr = winnr
+
+  -- Window options
+  vim.wo[winnr].wrap = true
+  vim.wo[winnr].cursorline = true
+  vim.wo[winnr].scrolloff = 3
+
+  -- Set content
+  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, content)
+
+  -- Create legend window at the bottom
+  local legend_bufnr = vim.api.nvim_create_buf(false, true)
+  vim.bo[legend_bufnr].buftype = "nofile"
+  vim.bo[legend_bufnr].bufhidden = "wipe"
+  vim.bo[legend_bufnr].swapfile = false
+  vim.bo[legend_bufnr].modifiable = true
+
+  local legend_lines = { " press q or Enter to close " }
+  vim.api.nvim_buf_set_lines(legend_bufnr, 0, -1, false, legend_lines)
+
+  local legend_winnr = vim.api.nvim_open_win(legend_bufnr, false, {
+    relative = "editor",
+    width = #legend_lines[1] + 2,
+    height = 1,
+    row = math.floor((height - win_height) / 2) + win_height + 1,
+    col = math.floor((width - win_width) / 2) + 1,
+    style = "minimal",
+    border = { "", "", "", "", "", "", "", "" },
+    zindex = 100,
+  })
+
+  msg_state.legend_winnr = legend_winnr
+
+  vim.wo[legend_winnr].wrap = false
+  vim.wo[legend_winnr].cursorline = false
+  vim.wo[legend_winnr].signcolumn = "no"
+
+  -- Keymaps
+  local map_opts = { buffer = bufnr, silent = true, noremap = true }
+
+  vim.keymap.set("n", "<Esc>", function()
+    M.close_message()
+    on_close()
+  end, map_opts)
+
+  vim.keymap.set("n", "q", function()
+    M.close_message()
+    on_close()
+  end, map_opts)
+
+  vim.keymap.set("n", "<CR>", function()
+    M.close_message()
+    on_close()
+  end, map_opts)
+
+  -- Close on WinClosed
+  local group = vim.api.nvim_create_augroup("sade_message", { clear = true })
+  vim.api.nvim_create_autocmd("WinClosed", {
+    group = group,
+    pattern = tostring(winnr),
+    callback = function()
+      M.close_message()
+      on_close()
+    end,
+  })
+
+  -- Focus the window
+  vim.api.nvim_set_current_win(winnr)
+
+  log.debug("Message window opened", { bufnr = bufnr, winnr = winnr })
+end
+
+--- Close message window
+function M.close_message()
+  if msg_state.legend_winnr and vim.api.nvim_win_is_valid(msg_state.legend_winnr) then
+    vim.api.nvim_win_close(msg_state.legend_winnr, true)
+  end
+  if msg_state.winnr and vim.api.nvim_win_is_valid(msg_state.winnr) then
+    vim.api.nvim_win_close(msg_state.winnr, true)
+  end
+  if msg_state.bufnr and vim.api.nvim_buf_is_valid(msg_state.bufnr) then
+    vim.api.nvim_buf_delete(msg_state.bufnr, { force = true })
+  end
+  msg_state.bufnr = nil
+  msg_state.winnr = nil
+  msg_state.legend_winnr = nil
+end
+
+--- Check if message is open
+function M.is_message_open()
+  return msg_state.bufnr ~= nil and vim.api.nvim_buf_is_valid(msg_state.bufnr)
+end
+
 return M

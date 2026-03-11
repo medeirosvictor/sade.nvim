@@ -202,7 +202,13 @@ function M._prompt_from_tree(entry)
       local full_prompt = text .. TREE_PROMPT_SUFFIX
       log.info("SadePrompt tree invoked", { prompt = text, context = context_label })
 
-      -- Invoke agent - response will be shown in tree on complete
+      -- Show loading message while agent runs
+      prompt_mod.show_message({
+        title = "🤖 Agent Running...",
+        content = { "⏳ Thinking..." },
+      })
+
+      -- Invoke agent - response will be shown in popup on complete
       agent.invoke(M.state.sade_root, M.state.index, {
         prompt = full_prompt,
         on_complete = function(response)
@@ -217,14 +223,40 @@ function M._prompt_from_tree(entry)
             response = "(no response)"
           end
           log.info("Agent complete, showing response", { resp_len = #(response or "") })
+
+          -- Build display lines
+          local lines = { "## Response", "", }
+          local width = 60 -- approximate width for wrapping
+          for resp_line in response:gmatch("[^\n]*") do
+            if resp_line == "" then
+              table.insert(lines, "")
+            else
+              -- Simple word wrap
+              while #resp_line > width do
+                local break_at = resp_line:sub(1, width):match(".*()%s") or width
+                table.insert(lines, resp_line:sub(1, break_at))
+                resp_line = resp_line:sub(break_at + 1)
+              end
+              if resp_line ~= "" then
+                table.insert(lines, resp_line)
+              end
+            end
+          end
+
           vim.schedule(function()
-            supertree_ui.show_response(response, context_label)
+            prompt_mod.show_message({
+              title = "🤖 Agent Response (" .. context_label .. ")",
+              content = lines,
+            })
           end)
         end,
         on_error = function(err)
           log.info("Agent error", { err = err })
           vim.schedule(function()
-            supertree_ui.show_response("Error: " .. (err or "unknown"), context_label)
+            prompt_mod.show_message({
+              title = "🤖 Agent Error",
+              content = { "Error: " .. (err or "unknown") },
+            })
           end)
         end,
       })
