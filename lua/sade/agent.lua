@@ -414,7 +414,7 @@ function M.invoke(sade_root, idx, opts)
       if obj.code == 0 then
         opts.on_complete(response or "")
       else
-        opts.on_error and opts.on_error("Agent exited with code " .. obj.code)
+        if opts.on_error then opts.on_error("Agent exited with code " .. obj.code) end
       end
       return
     end
