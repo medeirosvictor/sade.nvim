@@ -12,8 +12,8 @@ local state = {
 
 --- Rebuild the index and refresh the supertree.
 local function rebuild_and_refresh()
-  local sade = package.loaded["sade"]
-  if not sade or not sade.state or not sade.state.sade_root then
+  local ok_req, sade = pcall(require, "sade")
+  if not ok_req or type(sade) ~= "table" or not sade.state or not sade.state.sade_root then
     log.debug("node_watcher: sade not initialized, skipping rebuild")
     return
   end

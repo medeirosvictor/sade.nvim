@@ -315,9 +315,22 @@ function M.open(idx)
       agent_mod.invoke(sade.state.sade_root, sade.state.index, { filepath = entry.filepath })
     end
   end, opts)
-  vim.keymap.set("n", "A", function()
-    local node_actions = require("sade.node_actions")
-    node_actions.show_actions()
+  -- Node action keybinds
+  vim.keymap.set("n", "i", function()
+    local cursor = vim.api.nvim_win_get_cursor(ui.winnr)
+    local entry = ui.entries[cursor[1]]
+    if entry and entry.type == "node" and entry.id then
+      local node_actions = require("sade.node_actions")
+      node_actions.run_action("improve", entry.id, "node")
+    end
+  end, opts)
+  vim.keymap.set("n", "c", function()
+    local cursor = vim.api.nvim_win_get_cursor(ui.winnr)
+    local entry = ui.entries[cursor[1]]
+    if entry and entry.type == "node" and entry.id then
+      local node_actions = require("sade.node_actions")
+      node_actions.run_action("compact", entry.id, "node")
+    end
   end, opts)
 
   render()
@@ -357,6 +370,20 @@ function M.toggle(idx)
   else
     M.open(idx)
   end
+end
+
+--- Get the entry under cursor if the current window is the tree.
+--- Returns nil if not in the tree window.
+---@return SuperTreeEntry|nil
+function M.get_cursor_entry()
+  if not ui.winnr or not vim.api.nvim_win_is_valid(ui.winnr) then
+    return nil
+  end
+  if vim.api.nvim_get_current_win() ~= ui.winnr then
+    return nil
+  end
+  local cursor = vim.api.nvim_win_get_cursor(ui.winnr)
+  return ui.entries[cursor[1]]
 end
 
 --- Refresh the tree: re-render with current index.

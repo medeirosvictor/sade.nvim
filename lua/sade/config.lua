@@ -6,10 +6,8 @@ M.defaults = {
 
   -- Keyboard shortcuts (set to false to disable a shortcut)
   shortcuts = {
-    -- Invoke prompt (opens prompt buffer or selection-based)
+    -- Invoke prompt (adapts to context: tree, visual selection, or buffer)
     prompt = "<leader>a",
-    -- Invoke prompt via command (same as :SadePrompt)
-    prompt_cmd = "<leader>A",
   },
 
   agent = {

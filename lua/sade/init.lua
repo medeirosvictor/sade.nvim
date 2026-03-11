@@ -4,7 +4,6 @@ local parser = require("sade.parser")
 local index = require("sade.index")
 local heartbeat = require("sade.heartbeat")
 local supertree_ui = require("sade.supertree_ui")
-local context = require("sade.context")
 local seed = require("sade.seed")
 local agent = require("sade.agent")
 local upkeep = require("sade.upkeep")
@@ -26,10 +25,6 @@ function M.setup(opts)
     M.init()
   end, { desc = "Initialize SADE: find .sade/, parse nodes, build index" })
 
-  vim.api.nvim_create_user_command("SadeInfo", function()
-    M.info()
-  end, { desc = "Show SADE status and current file's node" })
-
   vim.api.nvim_create_user_command("SadeTree", function()
     if not M.state then
       vim.notify("[sade] not initialized. Run :SadeInit", vim.log.levels.WARN)
@@ -38,21 +33,6 @@ function M.setup(opts)
     supertree_ui.toggle(M.state.index)
   end, { desc = "Toggle SADE Super Tree" })
 
-  vim.api.nvim_create_user_command("SadeContext", function()
-    if not M.state then
-      vim.notify("[sade] not initialized. Run :SadeInit", vim.log.levels.WARN)
-      return
-    end
-    local ctx, node_ids = context.assemble_current(M.state.sade_root, M.state.index)
-    if not ctx then
-      vim.notify("[sade] no file open", vim.log.levels.WARN)
-      return
-    end
-    vim.fn.setreg("+", ctx)
-    local nodes_str = #node_ids > 0 and table.concat(node_ids, ", ") or "none"
-    vim.notify(("[sade] context copied to clipboard (nodes: %s)"):format(nodes_str))
-  end, { desc = "Copy current file's SADE context to clipboard" })
-
   vim.api.nvim_create_user_command("SadeSeed", function()
     if not M.state then
       vim.notify("[sade] not initialized. Run :SadeInit", vim.log.levels.WARN)
@@ -60,11 +40,18 @@ function M.setup(opts)
     end
     log.info("SadeSeed command invoked", { sade_root = M.state.sade_root })
     seed.run(M.state.sade_root, M.state.project_root)
-  end, { desc = "Show seed modal with node status and seeding options" })
+  end, { desc = "Generate node definitions from codebase via agent" })
 
   vim.api.nvim_create_user_command("SadePrompt", function()
     if not M.state then
       vim.notify("[sade] not initialized. Run :SadeInit", vim.log.levels.WARN)
+      return
+    end
+
+    -- Check if cursor is in the supertree — adapt prompt to node/file context
+    local tree_entry = supertree_ui.get_cursor_entry()
+    if tree_entry then
+      M._prompt_from_tree(tree_entry)
       return
     end
 
@@ -81,13 +68,12 @@ function M.setup(opts)
       end
 
       local ui = require("sade.ui")
-      local prompt_title = "SADE · Prompt (selection)"
       local prompt_desc = "Query about selected code"
       if #node_ids > 0 then
         prompt_desc = prompt_desc .. " | Nodes: " .. table.concat(node_ids, ", ")
       end
 
-      ui.input(prompt_title, {
+      ui.input("SADE · Prompt (selection)", {
         placeholder = "What do you want? (e.g., 'explain this', 'refactor this')",
         default = "",
         on_submit = function(text)
@@ -97,107 +83,12 @@ function M.setup(opts)
       })
     else
       -- No selection: open prompt buffer
-      local prompt = require("sade.prompt")
-
-      -- Get current file info for context
-      local buf_path = vim.api.nvim_buf_get_name(0)
-      local idx = M.state.index
-      local node_ids = {}
-      if buf_path ~= "" then
-        node_ids = require("sade.index").query(idx, buf_path)
-      end
-
-      local default_text = ""
-      if #node_ids > 0 then
-        default_text = "-- Context: nodes " .. table.concat(node_ids, ", ") .. "\n"
-      elseif buf_path ~= "" then
-        default_text = "-- Context: " .. buf_path .. " (not mapped to a node)\n"
-      else
-        default_text = "-- Context: no file open\n"
-      end
-
-      prompt.open({
-        title = "SADE · Prompt",
-        default_text = default_text,
-        on_submit = function(text)
-          log.info("SadePrompt invoked", { prompt = text, sade_root = M.state.sade_root })
-          agent.invoke(M.state.sade_root, M.state.index, { prompt = text })
-        end,
-        on_cancel = function()
-          -- Nothing to do
-        end,
-      })
+      M._prompt_buffer()
     end
-  end, { desc = "Prompt agent with selection or open prompt buffer", nargs = "?" })
+  end, { desc = "Prompt agent — adapts to tree selection, visual selection, or opens buffer", nargs = "?" })
 
   vim.api.nvim_create_user_command("SadeSetup", function()
-    log.set_area("init")
-    log.info("SadeSetup command invoked")
-
-    -- Open a popup to show loading state
-    local ui = require("sade.ui")
-    local loading_bufnr
-
-    -- Show loading spinner
-    local spinner_frames = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
-    local frame = 1
-    local timer = vim.uv.new_timer()
-
-    local function update_spinner()
-      frame = (frame % #spinner_frames) + 1
-      if loading_bufnr and vim.api.nvim_buf_is_valid(loading_bufnr) then
-        local lines = {
-          "",
-          "  " .. spinner_frames[frame] .. " Scanning for coding agents...",
-          "",
-          "  Detecting available agent CLIs...",
-        }
-        vim.api.nvim_buf_set_lines(loading_bufnr, 0, -1, false, lines)
-      end
-    end
-
-    -- Start spinner
-    timer:start(0, 80, function()
-      vim.schedule(update_spinner)
-    end)
-
-    -- Show initial popup
-    loading_bufnr = ui.popup({
-      "",
-      "  ⠋ Scanning for coding agents...",
-      "",
-      "  Detecting available agent CLIs...",
-    }, { title = "SADE · Setup", close = false })
-
-    -- Run the detection
-    local available = agent.detect()
-
-    -- Stop spinner
-    timer:stop()
-    timer:close()
-
-    -- Close loading popup
-    if loading_bufnr and vim.api.nvim_buf_is_valid(loading_bufnr) then
-      vim.api.nvim_buf_delete(loading_bufnr, { force = true })
-    end
-
-    if #available == 0 then
-      vim.notify("[sade] No agent CLIs found", vim.log.levels.WARN)
-      return
-    end
-
-    -- Show selection
-    local items = {}
-    for _, a in ipairs(available) do
-      table.insert(items, {
-        label = ("%s  ·  v%s"):format(a.name, a.version),
-        value = a.id,
-      })
-    end
-
-    ui.select("SADE · Select Agent", items, function(item)
-      agent.set(item.value)
-    end)
+    agent.setup_interactive()
   end, { desc = "Scan for agent CLIs and configure" })
 
   vim.api.nvim_create_user_command("SadeStop", function()
@@ -206,23 +97,9 @@ function M.setup(opts)
     agent.stop_all()
   end, { desc = "Stop all running agent requests" })
 
-  vim.api.nvim_create_user_command("SadeHeartbeatStop", function()
-    heartbeat.stop()
-    node_watcher.stop()
-  end, { desc = "Stop SADE heartbeat file watcher" })
-
-  vim.api.nvim_create_user_command("SadeHeartbeatClear", function()
-    heartbeat.clear_stale()
-  end, { desc = "Clear stale heartbeat indicators" })
-
   vim.api.nvim_create_user_command("SadeHelp", function()
     M.help()
-  end, { desc = "Show SADE command reference and guide" })
-
-  vim.api.nvim_create_user_command("Sade", function()
-    local node_actions = require("sade.node_actions")
-    node_actions.show_actions()
-  end, { desc = "Show node actions: improve, compact, unmap (use telescope if available)" })
+  end, { desc = "Show SADE status, commands, and guide" })
 
   vim.api.nvim_create_user_command("SadeUpkeep", function()
     if not M.state then
@@ -249,14 +126,56 @@ function M.setup(opts)
   if config.values.shortcuts.prompt then
     vim.keymap.set("n", config.values.shortcuts.prompt, function()
       vim.cmd("SadePrompt")
-    end, { desc = "SADE: Prompt agent (opens buffer or uses selection)" })
+    end, { desc = "SADE: Prompt agent" })
+  end
+end
+
+--- Open the prompt buffer with optional context header.
+---@param header? string  context line to prepend
+function M._prompt_buffer(header)
+  local prompt = require("sade.prompt")
+
+  local default_text = ""
+  if header then
+    default_text = header .. "\n"
+  else
+    local buf_path = vim.api.nvim_buf_get_name(0)
+    local idx = M.state.index
+    local node_ids = {}
+    if buf_path ~= "" then
+      node_ids = require("sade.index").query(idx, buf_path)
+    end
+
+    if #node_ids > 0 then
+      default_text = "-- Context: nodes " .. table.concat(node_ids, ", ") .. "\n"
+    elseif buf_path ~= "" then
+      default_text = "-- Context: " .. buf_path .. " (not mapped to a node)\n"
+    else
+      default_text = "-- Context: no file open\n"
+    end
   end
 
-  -- Also map for uppercase variant (if different from prompt)
-  if config.values.shortcuts.prompt_cmd and config.values.shortcuts.prompt_cmd ~= config.values.shortcuts.prompt then
-    vim.keymap.set("n", config.values.shortcuts.prompt_cmd, function()
-      vim.cmd("SadePrompt")
-    end, { desc = "SADE: Prompt agent (command)" })
+  prompt.open({
+    title = "SADE · Prompt",
+    default_text = default_text,
+    on_submit = function(text)
+      log.info("SadePrompt invoked", { prompt = text, sade_root = M.state.sade_root })
+      agent.invoke(M.state.sade_root, M.state.index, { prompt = text })
+    end,
+    on_cancel = function() end,
+  })
+end
+
+--- Handle SadePrompt when cursor is on a supertree entry.
+---@param entry SuperTreeEntry
+function M._prompt_from_tree(entry)
+  if entry.type == "node" and entry.id then
+    M._prompt_buffer("-- Context: node " .. entry.id)
+  elseif (entry.type == "file" or entry.type == "unmapped_file") and entry.filepath then
+    local rel = entry.rel_path or entry.filepath
+    M._prompt_buffer("-- Context: file " .. rel)
+  else
+    M._prompt_buffer()
   end
 end
 
@@ -310,6 +229,11 @@ function M.init()
   local count = #nodes
   vim.notify(("[sade] initialized — %d node%s loaded, heartbeat on"):format(count, count == 1 and "" or "s"))
 
+  -- Hint about seeding if no nodes exist
+  if count == 0 then
+    vim.notify("[sade] no nodes found — run :SadeSeed to generate from codebase", vim.log.levels.INFO)
+  end
+
   -- Auto-open Super Tree if configured
   if config.values.tree.auto_open then
     vim.defer_fn(function()
@@ -318,91 +242,92 @@ function M.init()
   end
 end
 
---- Print current state and, if a buffer is open, its node(s).
-function M.info()
-  if not M.state then
-    vim.notify("[sade] not initialized. Run :SadeInit", vim.log.levels.WARN)
-    return
-  end
-
-  local active = heartbeat.active_files()
-  local lines = {
-    "sade root: " .. M.state.sade_root,
-    "project root: " .. M.state.project_root,
-    "nodes: " .. vim.tbl_count(M.state.index.nodes),
-    "indexed files: " .. vim.tbl_count(M.state.index.file_to_nodes),
-    "active files: " .. #active,
-  }
-
-  local buf_path = vim.api.nvim_buf_get_name(0)
-  if buf_path ~= "" then
-    local node_ids = index.query(M.state.index, buf_path)
-    if #node_ids > 0 then
-      table.insert(lines, "current file nodes: " .. table.concat(node_ids, ", "))
-    else
-      table.insert(lines, "current file: not mapped to any node")
-    end
-
-    if heartbeat.is_active(buf_path) then
-      table.insert(lines, "current file: ACTIVE (being modified externally)")
-    end
-  end
-
-  vim.notify(table.concat(lines, "\n"))
-end
-
---- Show command reference and philosophy guide.
+--- Show combined help: live status + command reference + guide.
 function M.help()
+  -- Build live status section
+  local status_lines = {}
+  if M.state then
+    local active = heartbeat.active_files()
+    local agent_id = agent.get_configured() or "none"
+    local provider = agent.get_provider()
+    local agent_name = provider and provider.name or agent_id
+
+    table.insert(status_lines, "  sade root       " .. M.state.sade_root)
+    table.insert(status_lines, "  project root    " .. M.state.project_root)
+    table.insert(status_lines, "  agent           " .. agent_name)
+    table.insert(status_lines, "  nodes           " .. vim.tbl_count(M.state.index.nodes))
+    table.insert(status_lines, "  indexed files   " .. vim.tbl_count(M.state.index.file_to_nodes))
+    table.insert(status_lines, "  active files    " .. #active)
+
+    local buf_path = vim.api.nvim_buf_get_name(0)
+    if buf_path ~= "" then
+      local node_ids = index.query(M.state.index, buf_path)
+      if #node_ids > 0 then
+        table.insert(status_lines, "  current nodes   " .. table.concat(node_ids, ", "))
+      else
+        table.insert(status_lines, "  current file    not mapped to any node")
+      end
+      if heartbeat.is_active(buf_path) then
+        table.insert(status_lines, "  current file    ACTIVE (external modification)")
+      end
+    end
+  else
+    table.insert(status_lines, "  not initialized — run :SadeInit")
+  end
+
   local lines = {
+    "",
+    "  ╭─────────────────────────────────────────────────────────╮",
+    "  │                      STATUS                             │",
+    "  ╰─────────────────────────────────────────────────────────╯",
+    "",
+  }
+  vim.list_extend(lines, status_lines)
+  vim.list_extend(lines, {
     "",
     "  ╭─────────────────────────────────────────────────────────╮",
     "  │                     COMMANDS                            │",
     "  ╰─────────────────────────────────────────────────────────╯",
     "",
     "  :SadeInit              Initialize plugin, parse nodes, start heartbeat",
-    "  :SadeInfo              Show status: root, nodes, indexed files, current node",
-    "",
-    "  ╭─────────────────────────────────────────────────────────╮",
-    "  │                    SUPER TREE                           │",
-    "  ╰─────────────────────────────────────────────────────────╯",
+    "  :SadeSetup             Scan for agent CLIs and configure",
+    "  :SadeSeed              Generate nodes from codebase via agent",
     "",
     "  :SadeTree              Toggle the Super Tree sidebar",
+    "  :SadePrompt            Prompt agent (adapts to context — see below)",
+    "  :SadeStop              Stop all running agent requests",
     "",
-    "    Tree keymaps:",
+    "  :SadeUpkeep            Check architecture health",
+    "  :SadeHelp              This panel",
+    "",
+    "  ╭─────────────────────────────────────────────────────────╮",
+    "  │                   PROMPT MODES                          │",
+    "  ╰─────────────────────────────────────────────────────────╯",
+    "",
+    "  :SadePrompt adapts based on where you invoke it:",
+    "",
+    "    From Super Tree      Context set to highlighted node/file",
+    "    Visual selection      Input dialog → runs agent on selection",
+    "    Normal mode           Opens prompt buffer, :wq to submit",
+    "",
+    "  ╭─────────────────────────────────────────────────────────╮",
+    "  │                  SUPER TREE KEYS                        │",
+    "  ╰─────────────────────────────────────────────────────────╯",
+    "",
     "    Enter / o            Expand/collapse node, or open file",
     "    a                    Invoke agent on node or file",
     "    K                    Edit node markdown file",
+    "    i                    Improve node (expand description)",
+    "    c                    Compact node (simplify/merge)",
     "    R                    Refresh tree",
     "    q                    Close tree",
     "",
     "  ╭─────────────────────────────────────────────────────────╮",
-    "  │                  CONTEXT & PROMPT                      │",
+    "  │                    HEARTBEAT                            │",
     "  ╰─────────────────────────────────────────────────────────╯",
     "",
-    "  :SadeContext           Copy current file's context to clipboard",
-    "  :SadeSeed              Generate seed prompt for initial nodes",
-    "  :SadePrompt            Prompt agent (opens buffer, :w:q to submit)",
-    "                        Select text first for targeted queries",
-    "  :SadeSetup            Scan for agent CLIs and configure",
-    "",
-    "  ╭─────────────────────────────────────────────────────────╮",
-    "  │                      UPKEEP                             │",
-    "  ╰─────────────────────────────────────────────────────────╯",
-    "",
-    "  :SadeUpkeep            Check architecture health",
-    "    r                    Run agent (or copy to clipboard if no agent)",
-    "    R                    Rebuild index after manual edits",
-    "",
-    "  ╭─────────────────────────────────────────────────────────╮",
-    "  │                    HEARTBEAT                           │",
-    "  ╰─────────────────────────────────────────────────────────╯",
-    "",
-    "  :SadeHeartbeatStop     Stop file watcher",
-    "  :SadeHeartbeatClear    Clear stale change indicators",
-    "",
-    "    Indicators:",
-    "    ⠋ ⠙ ⠹ ...           File actively being modified (orange, 60s)",
-    "    ●                    File was changed, now settled (dim blue)",
+    "    ⠋ ⠙ ⠹ ...           File actively being modified (orange)",
+    "    ●                    File was changed, now settled (blue)",
     "",
     "  ╭─────────────────────────────────────────────────────────╮",
     "  │                      ABOUT                              │",
@@ -412,15 +337,11 @@ function M.help()
     "",
     "  Describe your architecture in .sade/nodes/*.md",
     "  Each node is a responsibility, not a folder.",
-    "",
-    "  Heartbeat watches for changes. When an agent writes",
-    "  to files, you see which architectural nodes are active.",
-    "",
     "  Nodes are human-maintained, agent-consumed.",
     "",
     "  Press q or Esc to close",
     "",
-  }
+  })
   sade_ui.popup(lines, { title = "SADE · Help" })
 end
 

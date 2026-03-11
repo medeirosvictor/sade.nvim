@@ -217,3 +217,11 @@ The spinner is directly tied to the heartbeat feature - it's a visual indicator 
 Not needed - this fits cleanly into the existing `heartbeat` node.
 ]777;notify;Pi;Ready for input
 --- Agent completed with code 0 ---
+
+--- Agent started at 2026-03-11 14:12:13 ---
+Nodes: spinner
+Context: /var/folders/8n/cxdp9zdd7j1b077lkpcsn60m0000gn/T/nvim.victormedeiros/aSyg5B/18.md
+
+[stderr] 400 {"type":"error","error":{"type":"invalid_request_error","message":"invalid params, chat content is empty (2013)"},"request_id":"0600e382a59c45d5ea0408174d2c8e8a"}
+
+--- Agent completed with code 1 ---

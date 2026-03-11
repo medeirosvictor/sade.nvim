@@ -62,18 +62,43 @@ function M.detect()
   return available
 end
 
+--- Cached project agent (set once on first successful load, cleared on set())
+---@type string|nil
+M._cached_project_agent = nil
+
 --- Get the configured provider id, or nil.
 --- Checks project config first, then falls back to global config.
+--- Resilient to load order — will find .sade/ independently if state isn't set yet.
 ---@return string|nil
 function M.get_configured()
-  -- check for project-level config first
+  ensure_providers()
+
+  -- return cache if available
+  if M._cached_project_agent and M.providers[M._cached_project_agent] then
+    return M._cached_project_agent
+  end
+
+  -- try to load from project config
+  local sade_root = nil
   local sade = package.loaded["sade"]
-  if sade and sade.state and sade.state.sade_root then
-    local project_agent = project.load_agent_config(sade.state.sade_root)
+  if sade and type(sade) == "table" and sade.state and sade.state.sade_root then
+    sade_root = sade.state.sade_root
+  else
+    -- state not initialized yet — find .sade/ independently
+    local ok, found = pcall(project.find_root)
+    if ok then
+      sade_root = found
+    end
+  end
+
+  if sade_root then
+    local project_agent = project.load_agent_config(sade_root)
     if project_agent and M.providers[project_agent] then
+      M._cached_project_agent = project_agent
       return project_agent
     end
   end
+
   -- fall back to global config
   return config.values.agent and config.values.agent.cli or nil
 end
@@ -90,6 +115,7 @@ end
 ---@param provider_id string
 function M.set(provider_id)
   ensure_providers()
+  M._cached_project_agent = nil  -- clear cache so get_configured() re-reads
   if not M.providers[provider_id] then
     log.set_area("agent")
     log.error("Unknown provider", { provider_id = provider_id })
@@ -239,8 +265,8 @@ function M.invoke(sade_root, idx, opts)
 
   local provider = M.get_provider()
   if not provider then
-    log.warn("No agent configured, prompting setup")
-    vim.notify("[sade] no agent configured. Run :SadeAgentSetup", vim.log.levels.WARN)
+    log.warn("No agent configured, triggering setup")
+    vim.notify("[sade] no agent configured — pick one now", vim.log.levels.INFO)
     M.setup_interactive()
     return
   end
