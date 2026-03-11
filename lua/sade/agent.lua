@@ -451,8 +451,13 @@ function M.invoke(sade_root, idx, opts)
         if f then
           response = f:read("*a")
           f:close()
+        else
+          log.warn("Could not read agent log", { log_path = log_path })
         end
+      else
+        log.debug("No prompt or stdout_callback, response will be nil", { has_prompt = opts.prompt ~= nil, has_stdout = opts.stdout_callback ~= nil })
       end
+      log.debug("Agent on_complete", { code = obj.code, response_len = response and #response or 0 })
       if obj.code == 0 then
         opts.on_complete(response)
       else
