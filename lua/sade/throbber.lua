@@ -33,12 +33,21 @@ function Throbber.new(cb, tick_time)
 end
 
 function Throbber:_run()
+  -- Check state FIRST (before doing any work)
+  -- This handles the race where stop() was called between scheduling and execution
   if self.state ~= "throbbing" then
+    self.timer = nil
     return
   end
 
   local index = math.floor((vim.uv.now() - self.start_time) / self.tick_time) % #self.icons + 1
   self.cb(self.icons[index])
+
+  -- Check state AGAIN before scheduling next timer (handles race with stop())
+  if self.state ~= "throbbing" then
+    self.timer = nil
+    return
+  end
 
   self.timer = vim.defer_fn(function()
     self:_run()
@@ -57,10 +66,13 @@ end
 
 --- Stop the throbber
 function Throbber:stop()
+  -- Set state FIRST to prevent race with pending _run() callbacks
   self.state = "stopped"
-  if self.timer then
-    pcall(vim.fn.timer_stop, self.timer)
-    self.timer = nil
+  -- Clear timer reference BEFORE stopping to prevent race with new timer creation
+  local timer_id = self.timer
+  self.timer = nil
+  if timer_id then
+    pcall(vim.fn.timer_stop, timer_id)
   end
 end
 

@@ -1,7 +1,13 @@
 {
   "version": "1.0",
   "generated_by": "seed",
-  "last_analyzed": null,
-  "nodes": [],
+  "last_analyzed": "2026-03-10T15:38:09Z",
+  "nodes": [
+    {
+      "id": "test",
+      "file": ".sade/nodes/test.md",
+      "description": "Test suite for the sade.nvim plugin."
+    }
+  ],
   "edges": []
 }

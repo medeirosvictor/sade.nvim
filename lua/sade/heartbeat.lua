@@ -1,8 +1,8 @@
 local M = {}
 
 local config = require("sade.config")
+local spinner = require("sade.spinner")
 
-local SPINNER_FRAMES = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
 local SIGN_GROUP = "sade_heartbeat"
 
 ---@class HeartbeatState
@@ -11,74 +11,16 @@ local state = {
   timers = {},             -- path → uv_timer_t (debounce)
   active = {},             -- path → timestamp of last change (spinning)
   stale = {},              -- path → true (changed but settled, dim indicator)
-  spinner_timer = nil,     -- uv_timer_t for animation loop
-  spinner_frame = 1,       -- current frame index
-  ns = nil,                -- namespace id
+  spinner = nil,           -- SadeSpinner instance
   batch = {},              -- files changed in current burst (for bulk notification)
   batch_timer = nil,       -- timer for batching notifications
+
+  -- File read tracking (via lsof)
+  reads_active = {},       -- path → timestamp of last read (spinning)
+  reads_stale = {},        -- path → true (read but settled, dim indicator)
+  read_poll_timer = nil,   -- timer for polling lsof
+  read_pid = nil,          -- PID to track reads for
 }
-
---- Define signs for each spinner frame + stale state.
-local function ensure_signs()
-  if state.ns then
-    return
-  end
-  state.ns = vim.api.nvim_create_namespace("sade_heartbeat")
-  for i, frame in ipairs(SPINNER_FRAMES) do
-    vim.fn.sign_define("SadeSpinner" .. i, { text = frame, texthl = "DiagnosticWarn" })
-  end
-  -- dim persistent indicator for files that were changed but settled
-  vim.fn.sign_define("SadeStale", { text = "●", texthl = "DiagnosticHint" })
-end
-
---- Find buffer number for a file path, if loaded.
----@param filepath string
----@return number|nil
-local function find_buf(filepath)
-  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
-    if vim.api.nvim_buf_is_loaded(buf) then
-      if vim.api.nvim_buf_get_name(buf) == filepath then
-        return buf
-      end
-    end
-  end
-  return nil
-end
-
---- Place the current spinner frame sign on all active buffers.
-local function tick_spinner()
-  state.spinner_frame = (state.spinner_frame % #SPINNER_FRAMES) + 1
-  local sign_name = "SadeSpinner" .. state.spinner_frame
-
-  for filepath, _ in pairs(state.active) do
-    local bufnr = find_buf(filepath)
-    if bufnr then
-      vim.fn.sign_unplace(SIGN_GROUP, { buffer = bufnr })
-      vim.fn.sign_place(0, SIGN_GROUP, sign_name, bufnr, { lnum = 1, priority = 50 })
-    end
-  end
-end
-
---- Start the spinner animation loop if not already running.
-local function start_spinner()
-  if state.spinner_timer then
-    return
-  end
-  local interval = config.values.heartbeat.spinner_ms
-  state.spinner_timer = vim.uv.new_timer()
-  state.spinner_timer:start(0, interval, function()
-    vim.schedule(tick_spinner)
-  end)
-end
-
---- Stop the spinner animation loop.
-local function stop_spinner()
-  if state.spinner_timer then
-    state.spinner_timer:stop()
-    state.spinner_timer:close()
-    state.spinner_timer = nil
-  end
-end
 
 --- Transition a file from active → stale (dim persistent indicator).
 ---@param filepath string
@@ -88,15 +30,21 @@ local function settle_file(filepath)
 
   -- stop spinner if no more active files
   if next(state.active) == nil then
-    stop_spinner()
+    state.spinner:stop()
   end
 
   -- place stale sign
-  local bufnr = find_buf(filepath)
-  if bufnr then
-    vim.fn.sign_unplace(SIGN_GROUP, { buffer = bufnr })
-    vim.fn.sign_place(0, SIGN_GROUP, "SadeStale", bufnr, { lnum = 1, priority = 50 })
-  end
+  state.spinner:place_stale(filepath)
+end
+
+--- Transition a file from active read → stale read (dim persistent indicator).
+---@param filepath string
+local function settle_read(filepath)
+  state.reads_active[filepath] = nil
+  state.reads_stale[filepath] = true
+
+  -- place stale read sign
+  state.spinner:place_read_stale(filepath)
 end
 
 --- Track a file change for bulk notification.
@@ -130,7 +78,16 @@ end
 --- Reload a buffer from disk if it exists and hasn't been modified by the user.
 ---@param filepath string
 local function reload_buf(filepath)
-  local bufnr = find_buf(filepath)
+  local bufnr
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_is_loaded(buf) then
+      if vim.api.nvim_buf_get_name(buf) == filepath then
+        bufnr = buf
+        break
+      end
+    end
+  end
+
   if not bufnr then
     return
   end
@@ -153,8 +110,9 @@ local function on_file_changed(filepath)
     reload_buf(filepath)
     track_batch(filepath)
 
-    ensure_signs()
-    start_spinner()
+    state.spinner:start(function()
+      return state.active
+    end)
 
     -- schedule settle check
     local settle_ms = config.values.heartbeat.settle_ms
@@ -215,17 +173,144 @@ local function watch_dir(dir)
   state.watchers[dir] = handle
 end
 
+--- Get files currently being read by a process using lsof.
+---@param pid number Process ID
+---@return string[] List of file paths being read
+local function get_read_files(pid)
+  local files = {}
+  local handle = io.popen("lsof -p " .. pid .. " 2>/dev/null")
+  if not handle then
+    return files
+  end
+
+  -- Skip header line
+  local header = handle:lines()()
+
+  for line in handle:lines() do
+    -- lsof output format: COMMAND PID USER FD TYPE DEVICE SIZE/OFF NODE NAME
+    -- Split by whitespace
+    local parts = {}
+    for part in line:gmatch("%S+") do
+      table.insert(parts, part)
+    end
+
+    -- FD is typically the 4th column (index 4)
+    if #parts >= 5 then
+      local fd = parts[4]
+      local name = parts[#parts] -- NAME is usually the last column
+
+      -- Files being read have 'r' in the FD column (e.g., "4r", "r")
+      if fd and name and (fd:match("^%d+r$") or fd == "r") then
+        -- Only track regular files (not pipes, memfs, etc.)
+        if name:match("^/") and not name:match("/dev/") then
+          table.insert(files, name)
+        end
+      end
+    end
+  end
+  handle:close()
+  return files
+end
+
+--- Poll lsof for files being read and update tracking state.
+local function poll_reads()
+  if not state.read_pid then
+    return
+  end
+
+  local read_files = get_read_files(state.read_pid)
+  local now = vim.uv.now()
+
+  -- Track which reads we've seen this cycle
+  local seen = {}
+
+  for _, filepath in ipairs(read_files) do
+    seen[filepath] = true
+
+    -- If not already tracked, add as active
+    if not state.reads_active[filepath] and not state.reads_stale[filepath] then
+      state.reads_active[filepath] = now
+      state.spinner:place_read(filepath)
+
+      -- Schedule settle check for this read (5 seconds)
+      local settle_ms = 5000
+      vim.defer_fn(function()
+        local last = state.reads_active[filepath]
+        if last and (vim.uv.now() - last) >= settle_ms then
+          settle_read(filepath)
+        end
+      end, settle_ms + 50)
+    else
+      -- Already tracked, update timestamp to keep it active
+      state.reads_active[filepath] = now
+    end
+  end
+
+  -- Mark files that are no longer being read as stale
+  for filepath, _ in pairs(state.reads_active) do
+    if not seen[filepath] then
+      settle_read(filepath)
+    end
+  end
+end
+
+--- Start tracking file reads for a process PID.
+---@param pid number Process ID to track
+function M.track_reads(pid)
+  if not pid or pid == 0 then
+    return
+  end
+
+  state.read_pid = pid
+
+  -- Initialize spinner if not already done (heartbeat might not be started)
+  if not state.spinner then
+    state.spinner = spinner.Spinner.new()
+  end
+
+  -- Ensure spinner signs are defined
+  state.spinner:ensure_signs()
+
+  -- Stop existing poll timer if any
+  if state.read_poll_timer then
+    state.read_poll_timer:stop()
+    state.read_poll_timer:close()
+  end
+
+  -- Poll every 1 second for file reads
+  state.read_poll_timer = vim.uv.new_timer()
+  state.read_poll_timer:start(1000, 1000, function()
+    vim.schedule(poll_reads)
+  end)
+end
+
+--- Stop tracking file reads.
+function M.stop_read_tracking()
+  if state.read_poll_timer then
+    state.read_poll_timer:stop()
+    state.read_poll_timer:close()
+    state.read_poll_timer = nil
+  end
+  state.read_pid = nil
+  state.reads_active = {}
+  state.reads_stale = {}
+end
+
 --- Start the heartbeat: watch the project root for file changes.
 ---@param project_root string
 function M.start(project_root)
-  ensure_signs()
+  state.spinner = spinner.Spinner.new()
+  state.spinner:ensure_signs()
   watch_dir(project_root)
   vim.notify("[sade] heartbeat started")
 end
 
 --- Stop all watchers and clear state (silent).
 function M.stop_silent()
-  stop_spinner()
+  if state.spinner then
+    state.spinner:stop()
+    state.spinner = nil
+  end
 
   for path, handle in pairs(state.watchers) do
     handle:stop()
@@ -243,10 +328,20 @@ function M.stop_silent()
     state.batch_timer = nil
   end
 
+  -- Stop read tracking
+  if state.read_poll_timer then
+    state.read_poll_timer:stop()
+    state.read_poll_timer:close()
+    state.read_poll_timer = nil
+  end
+
   state.active = {}
   state.stale = {}
   state.batch = {}
-  vim.fn.sign_unplace(SIGN_GROUP)
+  state.reads_active = {}
+  state.reads_stale = {}
+  state.read_pid = nil
+  spinner.Spinner.clear_all()
 end
 
 --- Stop all watchers and clear state.
@@ -258,13 +353,14 @@ end
 --- Clear all stale indicators (like acknowledging changes).
 function M.clear_stale()
   state.stale = {}
+  state.reads_stale = {}
   -- remove stale signs from all buffers
   for _, buf in ipairs(vim.api.nvim_list_bufs()) do
     if vim.api.nvim_buf_is_loaded(buf) then
       local signs = vim.fn.sign_getplaced(buf, { group = SIGN_GROUP })[1]
       if signs then
         for _, s in ipairs(signs.signs) do
-          if s.name == "SadeStale" then
+          if s.name == "SadeStale" or s.name == "SadeReadStale" then
             vim.fn.sign_unplace(SIGN_GROUP, { buffer = buf, id = s.id })
           end
         end
@@ -293,6 +389,7 @@ end
 ---@return boolean
 function M.is_touched(filepath)
   return state.active[filepath] ~= nil or state.stale[filepath] ~= nil
+    or state.reads_active[filepath] ~= nil or state.reads_stale[filepath] ~= nil
 end
 
 --- Get all currently active file paths.
@@ -310,6 +407,40 @@ end
 function M.stale_files()
   local files = {}
   for path, _ in pairs(state.stale) do
+    table.insert(files, path)
+  end
+  return files
+end
+
+--- Check if a file is currently being read.
+---@param filepath string
+---@return boolean
+function M.is_reading(filepath)
+  return state.reads_active[filepath] ~= nil
+end
+
+--- Check if a file was read but is now stale.
+---@param filepath string
+---@return boolean
+function M.is_read_stale(filepath)
+  return state.reads_stale[filepath] ~= nil
+end
+
+--- Get all currently active read file paths.
+---@return string[]
+function M.reading_files()
+  local files = {}
+  for path, _ in pairs(state.reads_active) do
+    table.insert(files, path)
+  end
+  return files
+end
+
+--- Get all stale read file paths.
+---@return string[]
+function M.stale_read_files()
+  local files = {}
+  for path, _ in pairs(state.reads_stale) do
     table.insert(files, path)
   end
   return files

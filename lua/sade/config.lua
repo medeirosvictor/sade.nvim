@@ -4,6 +4,14 @@ M.defaults = {
   -- auto-initialize on VimEnter if .sade/ found
   auto_init = true,
 
+  -- Keyboard shortcuts (set to false to disable a shortcut)
+  shortcuts = {
+    -- Invoke agent with context (opens input dialog)
+    agent = "<leader>a",
+    -- Invoke agent via command (same as :SadeAgent)
+    agent_cmd = "<leader>A",
+  },
+
   agent = {
     -- agent CLI: "pi", "claude", "codex", "opencode", "gemini", "ollama", or nil
     cli = nil,

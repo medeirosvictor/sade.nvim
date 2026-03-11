@@ -153,46 +153,50 @@ function M.setup(opts)
     })
   end
 
-  -- Key mappings
-  vim.keymap.set("n", "<leader>a", function()
-    if not M.state then
-      vim.notify("[sade] not initialized. Run :SadeInit", vim.log.levels.WARN)
-      return
-    end
+  -- Keyboard shortcuts (configurable via config.values.shortcuts)
+  if config.values.shortcuts.agent then
+    vim.keymap.set("n", config.values.shortcuts.agent, function()
+      if not M.state then
+        vim.notify("[sade] not initialized. Run :SadeInit", vim.log.levels.WARN)
+        return
+      end
 
-    -- Get current file info for context
-    local buf_path = vim.api.nvim_buf_get_name(0)
-    local idx = M.state.index
-    local node_ids = {}
-    if buf_path ~= "" then
-      node_ids = index.query(idx, buf_path)
-    end
+      -- Get current file info for context
+      local buf_path = vim.api.nvim_buf_get_name(0)
+      local idx = M.state.index
+      local node_ids = {}
+      if buf_path ~= "" then
+        node_ids = index.query(idx, buf_path)
+      end
 
-    -- Show input dialog for prompt
-    local prompt_title = "SADE · Agent"
-    local prompt_desc = ""
-    if #node_ids > 0 then
-      prompt_desc = "Nodes: " .. table.concat(node_ids, ", ")
-    elseif buf_path ~= "" then
-      prompt_desc = "No node mapped for current file"
-    else
-      prompt_desc = "No file open"
-    end
+      -- Show input dialog for prompt
+      local prompt_title = "SADE · Agent"
+      local prompt_desc = ""
+      if #node_ids > 0 then
+        prompt_desc = "Nodes: " .. table.concat(node_ids, ", ")
+      elseif buf_path ~= "" then
+        prompt_desc = "No node mapped for current file"
+      else
+        prompt_desc = "No file open"
+      end
 
-    sade_ui.input(prompt_title, {
-      placeholder = "What do you want the agent to do?",
-      default = "",
-      on_submit = function(text)
-        log.info("SadeAgent keymap invoked", { prompt = text, sade_root = M.state.sade_root })
-        agent.invoke(M.state.sade_root, M.state.index, { prompt = text })
-      end,
-    })
-  end, { desc = "SADE: Invoke agent with context" })
+      sade_ui.input(prompt_title, {
+        placeholder = "What do you want the agent to do?",
+        default = "",
+        on_submit = function(text)
+          log.info("SadeAgent keymap invoked", { prompt = text, sade_root = M.state.sade_root })
+          agent.invoke(M.state.sade_root, M.state.index, { prompt = text })
+        end,
+      })
+    end, { desc = "SADE: Invoke agent with context" })
+  end
 
-  -- Also map <Leader>A for uppercase variant
-  vim.keymap.set("n", "<leader>A", function()
-    vim.cmd("SadeAgent")
-  end, { desc = "SADE: Invoke agent (command)" })
+  -- Also map for uppercase variant (if different from agent)
+  if config.values.shortcuts.agent_cmd and config.values.shortcuts.agent_cmd ~= config.values.shortcuts.agent then
+    vim.keymap.set("n", config.values.shortcuts.agent_cmd, function()
+      vim.cmd("SadeAgent")
+    end, { desc = "SADE: Invoke agent (command)" })
+  end
 end
 
 --- Initialize: find or create .sade/, validate, parse nodes, build index, start heartbeat.
@@ -317,6 +321,7 @@ function M.help()
     "  :SadeContext           Copy current file's context to clipboard",
     "  :SadeSeed              Generate seed prompt for initial nodes",
     "  :SadeAgent / <leader>a  Invoke agent with context (opens input dialog)",
+    "                        Shortcut configurable via config.shortcuts.agent",
     "  :SadeAgentSetup        Pick which agent CLI to use",
     "",
     "  ╭─────────────────────────────────────────────────────────╮",

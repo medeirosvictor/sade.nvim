@@ -7,6 +7,7 @@ local ui = require("sade.ui")
 local log = require("sade.log")
 local throbber = require("sade.throbber")
 local tracking = require("sade.tracking")
+local heartbeat = require("sade.heartbeat")
 
 --- Provider registry — loaded lazily from lua/sade/providers/*.lua
 ---@type table<string, SadeProvider>
@@ -315,7 +316,11 @@ function M.invoke(sade_root, idx, opts)
   vim.fn.setreg("+", clipboard_cmd)
 
   local nodes_str = #node_ids > 0 and table.concat(node_ids, ", ") or "none"
-  log.info("Starting agent", { provider = provider.name, nodes = nodes_str })
+  log.info("Starting agent", { 
+    provider = provider.name,
+    nodes = nodes_str,
+    pid = proc.pid,
+  })
 
   -- Track this request
   local request = M.tracking:track(clipboard_cmd, provider.name)
@@ -341,6 +346,15 @@ function M.invoke(sade_root, idx, opts)
   local proc = vim.system(full_cmd, {
     text = true,
     stdout = vim.schedule_wrap(function(err, data)
+      -- Handle error (e.g., pipe closed)
+      if err then
+        log.warn("Agent stdout error", { err = err })
+        local f = io.open(log_path, "a")
+        if f then
+          f:write("[stdout error] " .. err .. "\n")
+          f:close()
+        end
+      end
       -- Log to file
       if data and data ~= "" then
         local f = io.open(log_path, "a")
@@ -351,6 +365,15 @@ function M.invoke(sade_root, idx, opts)
       end
     end),
     stderr = vim.schedule_wrap(function(err, data)
+      -- Handle error (e.g., pipe closed)
+      if err then
+        log.warn("Agent stderr error", { err = err })
+        local f = io.open(log_path, "a")
+        if f then
+          f:write("[stderr error] " .. err .. "\n")
+          f:close()
+        end
+      end
       -- Log to file
       if data and data ~= "" then
         local f = io.open(log_path, "a")
@@ -372,6 +395,9 @@ function M.invoke(sade_root, idx, opts)
 
     -- Stop throbber
     stop_throbber()
+
+    -- Stop tracking file reads
+    heartbeat.stop_read_tracking()
 
     -- Clean up temp file
     os.remove(ctx_file)
@@ -405,24 +431,37 @@ function M.invoke(sade_root, idx, opts)
     end
   end))
 
+  log. 
+
   -- Store proc for cancellation
   request.proc = proc
+
+  -- Start tracking file reads from the agent process
+  if proc and proc.pid then
+    heartbeat.track_reads(proc.pid)
+  end
 end
 
 --- Stop all running agent requests
 function M.stop_all()
   log.set_area("agent")
-  log.info("Stopping all agent requests")
+
+  -- Capture count BEFORE stopping (active_count returns 0 after stop_all changes state to cancelled)
+  local count = M.tracking:active_count()
+
+  if count == 0 then
+    log.info("No running agents to stop")
+    vim.notify("[sade] No running agents to stop")
+    return
+  end
+
+  log.info("Stopping all agent requests", { count = count })
 
   M.tracking:stop_all()
   stop_throbber()
+  heartbeat.stop_read_tracking()
 
-  local count = M.tracking:active_count()
-  if count > 0 then
-    vim.notify(("[sade] Stopped %d agent request(s)"):format(count))
-  else
-    vim.notify("[sade] No running agents to stop")
-  end
+  vim.notify(("[sade] Stopped %d agent request(s)"):format(count))
 end
 
 return M

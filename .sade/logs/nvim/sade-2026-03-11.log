@@ -1,0 +1,109 @@
+[2026-03-11 12:06:54] [INFO] [sade] sade.nvim logging initialized
+  log_file: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade/logs/nvim/sade-2026-03-11.log"
+[2026-03-11 12:06:54] [INFO] [sade] SADE initialized
+  node_count: 13
+  sade_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+  file_count: 40
+  project_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim"
+[2026-03-11 12:06:55] [INFO] [sade] node_watcher: started
+  watch_dir: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+[2026-03-11 12:07:09] [INFO] [sade] SadeUpkeep command invoked
+  sade_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+[2026-03-11 12:07:19] [INFO] [sade] sade action
+  type: "unmapped"
+  target: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/lua/sade/templates.lua"
+  action: "analyze"
+[2026-03-11 12:07:25] [INFO] [init] SadeAgentSetup command invoked
+[2026-03-11 12:07:25] [INFO] [agent] Setting up agent interactively
+[2026-03-11 12:25:16] [INFO] [sade] sade.nvim logging initialized
+  log_file: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade/logs/nvim/sade-2026-03-11.log"
+[2026-03-11 12:25:16] [INFO] [sade] SADE initialized
+  file_count: 40
+  sade_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+  node_count: 13
+  project_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim"
+[2026-03-11 12:25:16] [INFO] [sade] node_watcher: started
+  watch_dir: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+[2026-03-11 12:26:23] [INFO] [sade] sade.nvim logging initialized
+  log_file: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade/logs/nvim/sade-2026-03-11.log"
+[2026-03-11 12:26:23] [INFO] [sade] SADE initialized
+  file_count: 40
+  sade_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+  node_count: 13
+  project_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim"
+[2026-03-11 12:26:23] [INFO] [sade] node_watcher: started
+  watch_dir: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+[2026-03-11 12:27:52] [INFO] [sade] sade.nvim logging initialized
+  log_file: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade/logs/nvim/sade-2026-03-11.log"
+[2026-03-11 12:27:52] [INFO] [sade] SADE initialized
+  node_count: 13
+  sade_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+  file_count: 40
+  project_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim"
+[2026-03-11 12:27:52] [INFO] [sade] node_watcher: started
+  watch_dir: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+[2026-03-11 12:32:07] [INFO] [sade] sade.nvim logging initialized
+  log_file: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade/logs/nvim/sade-2026-03-11.log"
+[2026-03-11 12:32:07] [INFO] [sade] SADE initialized
+  node_count: 13
+  project_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim"
+  file_count: 40
+  sade_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+[2026-03-11 12:32:07] [INFO] [sade] node_watcher: started
+  watch_dir: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+[2026-03-11 12:33:16] [INFO] [sade] sade.nvim logging initialized
+  log_file: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade/logs/nvim/sade-2026-03-11.log"
+[2026-03-11 12:33:16] [INFO] [sade] SADE initialized
+  file_count: 40
+  sade_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+  node_count: 13
+  project_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim"
+[2026-03-11 12:33:18] [INFO] [sade] node_watcher: started
+  watch_dir: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+[2026-03-11 12:35:46] [INFO] [sade] sade.nvim logging initialized
+  log_file: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade/logs/nvim/sade-2026-03-11.log"
+[2026-03-11 12:35:46] [INFO] [sade] SADE initialized
+  node_count: 13
+  sade_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+  file_count: 40
+  project_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim"
+[2026-03-11 12:35:51] [INFO] [sade] node_watcher: started
+  watch_dir: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+[2026-03-11 12:40:50] [INFO] [sade] sade.nvim logging initialized
+  log_file: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade/logs/nvim/sade-2026-03-11.log"
+[2026-03-11 12:40:50] [INFO] [sade] SADE initialized
+  sade_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+  file_count: 40
+  project_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim"
+  node_count: 13
+[2026-03-11 12:42:44] [INFO] [sade] node_watcher: started
+  watch_dir: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+[2026-03-11 12:44:30] [INFO] [sade] sade.nvim logging initialized
+  log_file: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade/logs/nvim/sade-2026-03-11.log"
+[2026-03-11 12:44:30] [INFO] [sade] SADE initialized
+  file_count: 40
+  sade_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+  node_count: 13
+  project_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim"
+[2026-03-11 12:44:30] [INFO] [sade] node_watcher: started
+  watch_dir: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+[2026-03-11 12:58:06] [INFO] [sade] SadeAgent command invoked
+  prompt: "in heartbeat.lua using the PID present in request.proc lets track file reads using lsof -p PID and use a similar approach to file changed tracking but color the read files as a shade of salmon-pink instead (make it stale and regular colored after 5s of when it was read)"
+  sade_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+[2026-03-11 12:58:06] [INFO] [agent] Using provider
+  provider: "pi"
+[2026-03-11 12:58:06] [INFO] [agent] Starting agent
+  provider: "pi"
+  nodes: "none"
+[2026-03-11 13:02:53] [INFO] [sade] sade.nvim logging initialized
+  log_file: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade/logs/nvim/sade-2026-03-11.log"
+[2026-03-11 13:02:53] [INFO] [sade] SADE initialized
+  sade_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+  node_count: 13
+  project_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim"
+  file_count: 40
+[2026-03-11 13:02:54] [INFO] [sade] node_watcher: started
+  watch_dir: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+[2026-03-11 13:04:07] [INFO] [agent] Agent completed
+  code: 0
+  signal: 0
