@@ -81,6 +81,19 @@ function M.build_entries(idx, expanded_state, agent_running)
   local entries = {}
   local nodes = sorted_nodes(idx)
 
+  -- project name header
+  local project_name = vim.fn.fnamemodify(idx.project_root, ":t")
+  table.insert(entries, {
+    type = "header",
+    label = " " .. project_name,
+    depth = 0,
+  })
+  table.insert(entries, {
+    type = "separator",
+    label = string.rep("─", 30),
+    depth = 0,
+  })
+
   -- show agent running indicator at top with spinning icon
   if agent_running then
     local icon = type(agent_running) == "string" and agent_running or "⚡"
@@ -181,6 +194,23 @@ function M.build_entries(idx, expanded_state, agent_running)
       end
     end
   end
+
+  -- legend footer
+  table.insert(entries, {
+    type = "separator",
+    label = string.rep("─", 30),
+    depth = 0,
+  })
+  table.insert(entries, {
+    type = "legend",
+    label = "i improve · c compact",
+    depth = 0,
+  })
+  table.insert(entries, {
+    type = "legend",
+    label = "K edit · a agent · q quit",
+    depth = 0,
+  })
 
   return entries
 end

@@ -7,12 +7,13 @@ local log = require("sade.log")
 
 ---@class SuperTreeUI
 local ui = {
-  bufnr = nil,           -- tree buffer
-  winnr = nil,           -- tree window
-  expanded = {},         -- node_id → boolean
-  entries = {},          -- current rendered entries
-  idx = nil,             -- SadeIndex reference
-  refresh_timer = nil,   -- heartbeat refresh timer
+  bufnr = nil,              -- tree buffer
+  winnr = nil,              -- tree window
+  expanded = {},            -- node_id → boolean
+  entries = {},             -- current rendered entries
+  idx = nil,                -- SadeIndex reference
+  refresh_timer = nil,      -- heartbeat refresh timer
+  showing_response = false, -- true when agent response is displayed
 }
 
 -- Expose entries for node_actions
@@ -79,7 +80,9 @@ local function render_line(entry)
   local prefix = ""
   local suffix = ""
 
-  if entry.type == "node" or entry.type == "unmapped_header" then
+  if entry.type == "header" or entry.type == "separator" or entry.type == "legend" then
+    return entry.label
+  elseif entry.type == "node" or entry.type == "unmapped_header" then
     if entry.active then
       prefix = ICONS.active
     elseif entry.reading then
@@ -113,7 +116,11 @@ local function apply_highlights(bufnr, entries)
 
     for i, entry in ipairs(entries) do
       local line = i - 1
-      if entry.type == "agent_running" then
+      if entry.type == "header" then
+        vim.api.nvim_buf_add_highlight(bufnr, ns, "Title", line, 0, -1)
+      elseif entry.type == "separator" or entry.type == "legend" then
+        vim.api.nvim_buf_add_highlight(bufnr, ns, "Comment", line, 0, -1)
+      elseif entry.type == "agent_running" then
         vim.api.nvim_buf_add_highlight(bufnr, ns, "DiagnosticWarn", line, 0, -1)
       elseif entry.active then
         vim.api.nvim_buf_add_highlight(bufnr, ns, "DiagnosticWarn", line, 0, -1)
@@ -275,8 +282,25 @@ function M.open(idx)
   vim.keymap.set("n", "<CR>", toggle_entry, opts)
   vim.keymap.set("n", "o", toggle_entry, opts)
   vim.keymap.set("n", "K", edit_entry, opts)
-  vim.keymap.set("n", "q", function() M.close() end, opts)
-  vim.keymap.set("n", "R", function() render() end, opts)
+  vim.keymap.set("n", "q", function()
+    if ui.showing_response then
+      M.dismiss_response()
+    else
+      M.close()
+    end
+  end, opts)
+  vim.keymap.set("n", "<Esc>", function()
+    if ui.showing_response then
+      M.dismiss_response()
+    end
+  end, opts)
+  vim.keymap.set("n", "R", function()
+    if ui.showing_response then
+      M.dismiss_response()
+    else
+      render()
+    end
+  end, opts)
   vim.keymap.set("n", "a", function()
     local cursor = vim.api.nvim_win_get_cursor(ui.winnr)
     local entry = ui.entries[cursor[1]]
@@ -368,6 +392,10 @@ end
 
 --- Refresh the tree: re-render with current index.
 function M.refresh()
+  -- don't refresh while showing a response
+  if ui.showing_response then
+    return
+  end
   local ok, err = pcall(function()
     if ui.bufnr and vim.api.nvim_buf_is_valid(ui.bufnr) then
       render()
@@ -376,6 +404,72 @@ function M.refresh()
   if not ok then
     vim.notify("[sade] tree refresh error: " .. tostring(err), vim.log.levels.ERROR)
   end
+end
+
+--- Show agent response inline in the tree buffer.
+--- Replaces tree content temporarily. Press q/R/Esc to go back.
+---@param response string  agent response text
+---@param context? string  what was asked about (e.g., "node heartbeat")
+function M.show_response(response, context)
+  if not ui.bufnr or not vim.api.nvim_buf_is_valid(ui.bufnr) then
+    return
+  end
+
+  ui.showing_response = true
+
+  -- build display lines
+  local lines = {}
+  local width = vim.api.nvim_win_get_width(ui.winnr) - 2
+
+  table.insert(lines, " Agent Response")
+  if context then
+    table.insert(lines, " " .. context)
+  end
+  table.insert(lines, string.rep("─", width))
+  table.insert(lines, "")
+
+  -- wrap response text to fit the tree width
+  for resp_line in response:gmatch("[^\n]*") do
+    if resp_line == "" then
+      table.insert(lines, "")
+    else
+      -- simple word wrap
+      while #resp_line > width do
+        local break_at = resp_line:sub(1, width):match(".*()%s") or width
+        table.insert(lines, resp_line:sub(1, break_at))
+        resp_line = resp_line:sub(break_at + 1)
+      end
+      if resp_line ~= "" then
+        table.insert(lines, resp_line)
+      end
+    end
+  end
+
+  table.insert(lines, "")
+  table.insert(lines, string.rep("─", width))
+  table.insert(lines, " press R to return to tree")
+
+  -- render into buffer
+  vim.bo[ui.bufnr].modifiable = true
+  vim.api.nvim_buf_set_lines(ui.bufnr, 0, -1, false, lines)
+  vim.bo[ui.bufnr].modifiable = false
+
+  -- apply highlights
+  local ns = vim.api.nvim_create_namespace("sade_supertree_hl")
+  vim.api.nvim_buf_clear_namespace(ui.bufnr, ns, 0, -1)
+  -- header
+  vim.api.nvim_buf_add_highlight(ui.bufnr, ns, "Title", 0, 0, -1)
+  if context then
+    vim.api.nvim_buf_add_highlight(ui.bufnr, ns, "Comment", 1, 0, -1)
+  end
+  -- footer hint
+  vim.api.nvim_buf_add_highlight(ui.bufnr, ns, "Comment", #lines - 1, 0, -1)
+end
+
+--- Dismiss response view and return to the tree.
+function M.dismiss_response()
+  ui.showing_response = false
+  render()
 end
 
 return M

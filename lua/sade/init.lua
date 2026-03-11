@@ -166,17 +166,73 @@ function M._prompt_buffer(header)
   })
 end
 
+--- Short-answer system instruction appended to tree prompts.
+local TREE_PROMPT_SUFFIX = [[
+
+IMPORTANT: Keep your response concise — 2 short paragraphs maximum.
+Add two otaku-style emojis: one at the very beginning and one at the very end of your response.
+Do NOT modify any files. Just answer the question.]]
+
 --- Handle SadePrompt when cursor is on a supertree entry.
+--- Opens prompt buffer with short-answer instruction, shows response inline in tree.
 ---@param entry SuperTreeEntry
 function M._prompt_from_tree(entry)
+  local context_label
+  local context_header
+
   if entry.type == "node" and entry.id then
-    M._prompt_buffer("-- Context: node " .. entry.id)
+    context_label = "node " .. entry.id
+    context_header = "-- Context: node " .. entry.id
   elseif (entry.type == "file" or entry.type == "unmapped_file") and entry.filepath then
     local rel = entry.rel_path or entry.filepath
-    M._prompt_buffer("-- Context: file " .. rel)
+    context_label = "file " .. rel
+    context_header = "-- Context: file " .. rel
   else
     M._prompt_buffer()
+    return
   end
+
+  local prompt_mod = require("sade.prompt")
+
+  prompt_mod.open({
+    title = "SADE · Ask (" .. context_label .. ")",
+    default_text = context_header .. "\n",
+    on_submit = function(text)
+      -- Append the short-answer instruction
+      local full_prompt = text .. TREE_PROMPT_SUFFIX
+      log.info("SadePrompt tree invoked", { prompt = text, context = context_label })
+
+      -- Collect stdout and show in tree when done
+      local response_lines = {}
+      agent.invoke(M.state.sade_root, M.state.index, {
+        prompt = full_prompt,
+        stdout_callback = function(data)
+          if data and data ~= "" then
+            table.insert(response_lines, data)
+          end
+        end,
+        on_complete = function()
+          local response = table.concat(response_lines, "")
+          -- strip ANSI escape codes
+          response = response:gsub("\27%[[%d;]*[a-zA-Z]", "")
+          -- trim
+          response = vim.trim(response)
+          if response == "" then
+            response = "(no response)"
+          end
+          vim.schedule(function()
+            supertree_ui.show_response(response, context_label)
+          end)
+        end,
+        on_error = function(err)
+          vim.schedule(function()
+            supertree_ui.show_response("Error: " .. (err or "unknown"), context_label)
+          end)
+        end,
+      })
+    end,
+    on_cancel = function() end,
+  })
 end
 
 --- Initialize: find or create .sade/, validate, parse nodes, build index, start heartbeat.

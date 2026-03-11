@@ -414,17 +414,6 @@ function M.invoke(sade_root, idx, opts)
       end
     end),
   }, vim.schedule_wrap(function(obj)
-    -- Collect response for visual mode
-    local response = nil
-    if opts.on_complete then
-      -- Read the log file to get the full response
-      local f = io.open(log_path, "r")
-      if f then
-        response = f:read("*a")
-        f:close()
-      end
-    end
-
     -- Append completion message to log
     local f = io.open(log_path, "a")
     if f then
@@ -443,10 +432,10 @@ function M.invoke(sade_root, idx, opts)
     -- Clean up temp file
     os.remove(ctx_file)
 
-    -- If on_complete callback is provided, call it (visual mode)
+    -- If on_complete callback is provided, call it
     if opts.on_complete then
       if obj.code == 0 then
-        opts.on_complete(response or "")
+        opts.on_complete()
       else
         if opts.on_error then opts.on_error("Agent exited with code " .. obj.code) end
       end
