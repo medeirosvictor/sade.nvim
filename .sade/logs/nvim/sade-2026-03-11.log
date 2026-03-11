@@ -107,3 +107,90 @@
 [2026-03-11 13:04:07] [INFO] [agent] Agent completed
   code: 0
   signal: 0
+[2026-03-11 13:05:05] [INFO] [sade] sade.nvim logging initialized
+  log_file: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade/logs/nvim/sade-2026-03-11.log"
+[2026-03-11 13:05:05] [INFO] [sade] SADE initialized
+  project_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim"
+  sade_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+  file_count: 40
+  node_count: 13
+[2026-03-11 13:05:05] [INFO] [sade] node_watcher: started
+  watch_dir: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+[2026-03-11 13:05:33] [INFO] [sade] sade action
+  type: "unmapped"
+  target: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/lua/sade/spinner.lua"
+  action: "analyze"
+[2026-03-11 13:05:40] [INFO] [init] SadeAgentSetup command invoked
+[2026-03-11 13:05:40] [INFO] [agent] Setting up agent interactively
+[2026-03-11 13:05:53] [INFO] [agent] sade action
+  type: "unmapped"
+  target: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/lua/sade/spinner.lua"
+  action: "analyze"
+[2026-03-11 13:05:53] [INFO] [agent] Using provider
+  provider: "pi"
+[2026-03-11 13:09:05] [INFO] [sade] sade.nvim logging initialized
+  log_file: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade/logs/nvim/sade-2026-03-11.log"
+[2026-03-11 13:09:05] [INFO] [sade] SADE initialized
+  file_count: 40
+  sade_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+  node_count: 13
+  project_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim"
+[2026-03-11 13:09:06] [INFO] [sade] node_watcher: started
+  watch_dir: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+[2026-03-11 13:09:20] [INFO] [sade] sade action
+  type: "unmapped"
+  action: "analyze"
+  target: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/lua/sade/spinner.lua"
+[2026-03-11 13:09:25] [INFO] [init] SadeAgentSetup command invoked
+[2026-03-11 13:09:25] [INFO] [agent] Setting up agent interactively
+[2026-03-11 13:09:38] [INFO] [agent] sade action
+  type: "unmapped"
+  action: "analyze"
+  target: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/lua/sade/spinner.lua"
+[2026-03-11 13:09:38] [INFO] [agent] Using provider
+  provider: "pi"
+[2026-03-11 13:09:38] [INFO] [agent] Starting agent
+  nodes: "none"
+  provider: "pi"
+  pid: 84661
+[2026-03-11 13:09:49] [INFO] [agent] Agent completed
+  code: 0
+  signal: 0
+[2026-03-11 13:10:04] [INFO] [agent] SadeUpkeep command invoked
+  sade_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+[2026-03-11 13:10:11] [INFO] [sade] sade.nvim logging initialized
+  log_file: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade/logs/nvim/sade-2026-03-11.log"
+[2026-03-11 13:10:11] [INFO] [sade] SADE initialized
+  node_count: 13
+  project_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim"
+  file_count: 40
+  sade_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+[2026-03-11 13:10:12] [INFO] [sade] node_watcher: started
+  watch_dir: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+[2026-03-11 13:53:16] [INFO] [sade] node_watcher: node file changed
+  filename: "nodes/prompt.md"
+[2026-03-11 13:53:16] [INFO] [sade] node_watcher: index rebuilt
+  file_count: 40
+  node_count: 14
+[2026-03-11 13:53:24] [INFO] [sade] node_watcher: node file changed
+  filename: "nodes/visual.md"
+[2026-03-11 13:53:24] [INFO] [sade] node_watcher: index rebuilt
+  file_count: 40
+  node_count: 15
+[2026-03-11 13:53:29] [INFO] [sade] node_watcher: node file changed
+  filename: "nodes/spinner.md"
+[2026-03-11 13:53:29] [INFO] [sade] node_watcher: index rebuilt
+  file_count: 40
+  node_count: 16
+[2026-03-11 14:05:29] [INFO] [sade] node_watcher: node file changed
+  filename: "nodes/providers.md"
+[2026-03-11 14:05:30] [INFO] [sade] node_watcher: index rebuilt
+  file_count: 40
+  node_count: 17
+[2026-03-11 14:05:33] [INFO] [sade] node_watcher: node file changed
+  filename: "nodes/agent.md"
+[2026-03-11 14:05:33] [INFO] [sade] node_watcher: node file changed
+  filename: "nodes/agent-ops.md"
+[2026-03-11 14:05:34] [INFO] [sade] node_watcher: index rebuilt
+  file_count: 40
+  node_count: 17
