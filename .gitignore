@@ -1,2 +1,11 @@
 # SADE local state
-.sade/app.log
+.sade/
+.sade_local/
+
+# Editor
+.luarc.json
+*.swp
+*.swo
+
+# OS
+.DS_Store
