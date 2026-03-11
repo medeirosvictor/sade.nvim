@@ -208,18 +208,21 @@ function M._prompt_from_tree(entry)
         on_complete = function(response)
           -- Use response from callback (includes all agent output)
           if response then
-            -- strip ANSI escape codes
+            -- strip escape codes
+            response = response:gsub("\27%][^\7]*\7", "")
             response = response:gsub("\27%[[%d;]*[a-zA-Z]", "")
             response = vim.trim(response)
           end
           if not response or response == "" then
             response = "(no response)"
           end
+          log.info("Agent complete, showing response", { resp_len = #(response or "") })
           vim.schedule(function()
             supertree_ui.show_response(response, context_label)
           end)
         end,
         on_error = function(err)
+          log.info("Agent error", { err = err })
           vim.schedule(function()
             supertree_ui.show_response("Error: " .. (err or "unknown"), context_label)
           end)
