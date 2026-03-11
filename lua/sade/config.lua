@@ -7,7 +7,7 @@ M.defaults = {
   -- Keyboard shortcuts (set to false to disable a shortcut)
   shortcuts = {
     -- Invoke prompt (adapts to context: tree, visual selection, or buffer)
-    prompt = "<leader>a",
+    prompt = "<leader>ak",
   },
 
   agent = {
