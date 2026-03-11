@@ -316,20 +316,12 @@ function M.invoke(sade_root, idx, opts)
   vim.fn.setreg("+", clipboard_cmd)
 
   local nodes_str = #node_ids > 0 and table.concat(node_ids, ", ") or "none"
-  log.info("Starting agent", { 
-    provider = provider.name,
-    nodes = nodes_str,
-    pid = proc.pid,
-  })
 
   -- Track this request
   local request = M.tracking:track(clipboard_cmd, provider.name)
 
   -- Start throbber
   start_throbber()
-
-  -- Notify user
-  vim.notify(("[sade] Agent %s running (nodes: %s)"):format(provider.name, nodes_str))
 
   -- Get log path for this session
   local log_path = get_agent_log_path(sade_root)
@@ -431,10 +423,18 @@ function M.invoke(sade_root, idx, opts)
     end
   end))
 
-  log. 
-
   -- Store proc for cancellation
   request.proc = proc
+
+  -- Log after proc is available
+  log.info("Starting agent", {
+    provider = provider.name,
+    nodes = nodes_str,
+    pid = proc.pid,
+  })
+
+  -- Notify user
+  vim.notify(("[sade] Agent %s running (nodes: %s)"):format(provider.name, nodes_str))
 
   -- Start tracking file reads from the agent process
   if proc and proc.pid then
