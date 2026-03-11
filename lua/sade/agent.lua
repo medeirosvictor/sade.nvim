@@ -457,7 +457,7 @@ function M.invoke(sade_root, idx, opts)
       else
         log.debug("No prompt or stdout_callback, response will be nil", { has_prompt = opts.prompt ~= nil, has_stdout = opts.stdout_callback ~= nil })
       end
-      log.debug("Agent on_complete", { code = obj.code, response_len = response and #response or 0 })
+      log.debug("Agent on_complete", { code = obj.code, response_len = response and #response or 0, has_prompt = opts.prompt ~= nil })
       if obj.code == 0 then
         opts.on_complete(response)
       else
