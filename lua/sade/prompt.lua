@@ -28,6 +28,7 @@ function M.open(opts)
 
   -- Create buffer
   local bufnr = vim.api.nvim_create_buf(true, false)
+  vim.api.nvim_buf_set_name(bufnr, "sade-prompt")
   state.bufnr = bufnr
   state.on_submit = on_submit
   state.on_cancel = on_cancel
