@@ -215,7 +215,6 @@ function M._prompt_from_tree(entry)
           if not response or response == "" then
             response = "(no response)"
           end
-          log.debug("Agent complete, showing response", { response_len = response and #response or 0, context = context_label })
           vim.schedule(function()
             supertree_ui.show_response(response, context_label)
           end)
