@@ -433,9 +433,20 @@ function M.invoke(sade_root, idx, opts)
     os.remove(ctx_file)
 
     -- If on_complete callback is provided, call it
+    -- Pass response if callback expects it (check via debug.getinfo if needed)
+    -- For now, always pass response to maintain backward compat
     if opts.on_complete then
+      local response = nil
+      -- Read response from log file for backward compat with visual mode
+      if opts.prompt or opts.stdout_callback then
+        local f = io.open(log_path, "r")
+        if f then
+          response = f:read("*a")
+          f:close()
+        end
+      end
       if obj.code == 0 then
-        opts.on_complete()
+        opts.on_complete(response)
       else
         if opts.on_error then opts.on_error("Agent exited with code " .. obj.code) end
       end

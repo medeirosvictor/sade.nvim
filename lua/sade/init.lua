@@ -202,22 +202,17 @@ function M._prompt_from_tree(entry)
       local full_prompt = text .. TREE_PROMPT_SUFFIX
       log.info("SadePrompt tree invoked", { prompt = text, context = context_label })
 
-      -- Collect stdout and show in tree when done
-      local response_lines = {}
+      -- Invoke agent - response will be shown in tree on complete
       agent.invoke(M.state.sade_root, M.state.index, {
         prompt = full_prompt,
-        stdout_callback = function(data)
-          if data and data ~= "" then
-            table.insert(response_lines, data)
+        on_complete = function(response)
+          -- Use response from callback (includes all agent output)
+          if response then
+            -- strip ANSI escape codes
+            response = response:gsub("\27%[[%d;]*[a-zA-Z]", "")
+            response = vim.trim(response)
           end
-        end,
-        on_complete = function()
-          local response = table.concat(response_lines, "")
-          -- strip ANSI escape codes
-          response = response:gsub("\27%[[%d;]*[a-zA-Z]", "")
-          -- trim
-          response = vim.trim(response)
-          if response == "" then
+          if not response or response == "" then
             response = "(no response)"
           end
           vim.schedule(function()
