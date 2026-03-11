@@ -202,10 +202,11 @@ function M._prompt_from_tree(entry)
       local full_prompt = text .. TREE_PROMPT_SUFFIX
       log.info("SadePrompt tree invoked", { prompt = text, context = context_label })
 
-      -- Show loading message while agent runs
+      -- Show loading message while agent runs (top-right, small like 99)
       prompt_mod.show_message({
         title = "🤖 Agent Running...",
         content = { "⏳ Thinking..." },
+        position = "top-right",
       })
 
       -- Invoke agent - response will be shown in popup on complete

@@ -233,13 +233,14 @@ local msg_state = {
 }
 
 --- Show a message in a floating window (for agent responses)
----@param opts { title?: string, content?: string[], on_close?: fun(), loading?: boolean }
+---@param opts { title?: string, content?: string[], on_close?: fun(), position?: "center" | "top-right" }
 function M.show_message(opts)
   M.close_message()
 
   local title = opts.title or "SADE"
   local content = opts.content or {}
   local on_close = opts.on_close or function() end
+  local position = opts.position or "center"
 
   -- Create buffer
   local bufnr = vim.api.nvim_create_buf(false, true)
@@ -253,21 +254,34 @@ function M.show_message(opts)
   vim.bo[bufnr].filetype = "markdown"
   vim.bo[bufnr].modifiable = true
 
-  -- Calculate window size based on content
+  -- Calculate window size and position based on content and desired position
   local width, height = get_ui_dimensions()
-  local win_width = math.floor(width * 0.5)
-  local content_height = #content + 4 -- header + padding
-  local win_height = math.min(content_height, math.floor(height * 0.6))
+  local win_width, win_height, row, col
+
+  if position == "top-right" then
+    -- Small, top-right corner (like 99)
+    win_width = math.floor(width / 4)
+    win_height = 3
+    row = 1
+    col = width - win_width - 1
+  else
+    -- Center (default)
+    win_width = math.floor(width * 0.5)
+    local content_height = #content + 4
+    win_height = math.min(content_height, math.floor(height * 0.6))
+    row = math.floor((height - win_height) / 2)
+    col = math.floor((width - win_width) / 2)
+  end
 
   -- Create main floating window
   local winnr = vim.api.nvim_open_win(bufnr, true, {
     relative = "editor",
     width = win_width,
     height = win_height,
-    row = math.floor((height - win_height) / 2),
-    col = math.floor((width - win_width) / 2),
+    row = row,
+    col = col,
     style = "minimal",
-    border = "rounded",
+    border = position == "top-right" and "rounded" or "rounded",
     title = " " .. title .. " ",
     title_pos = "center",
   })
@@ -292,12 +306,22 @@ function M.show_message(opts)
   local legend_lines = { " press q or Enter to close " }
   vim.api.nvim_buf_set_lines(legend_bufnr, 0, -1, false, legend_lines)
 
+  -- Calculate legend position based on main window
+  local legend_row, legend_col
+  if position == "top-right" then
+    legend_row = row + win_height + 1
+    legend_col = col
+  else
+    legend_row = row + win_height + 1
+    legend_col = col + 1
+  end
+
   local legend_winnr = vim.api.nvim_open_win(legend_bufnr, false, {
     relative = "editor",
     width = #legend_lines[1] + 2,
     height = 1,
-    row = math.floor((height - win_height) / 2) + win_height + 1,
-    col = math.floor((width - win_width) / 2) + 1,
+    row = legend_row,
+    col = legend_col,
     style = "minimal",
     border = { "", "", "", "", "", "", "", "" },
     zindex = 100,
