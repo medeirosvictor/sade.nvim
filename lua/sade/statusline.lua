@@ -34,8 +34,8 @@ end
 ---   clean:  node name only
 ---@return string
 function M.component()
-  local sade = package.loaded["sade"]
-  if not sade or not sade.state then
+  local ok, sade = pcall(require, "sade")
+  if not ok or type(sade) ~= "table" or not sade.state or not sade.state.index then
     return ""
   end
 
@@ -95,8 +95,8 @@ end
 --- Lualine color function — returns highlight based on state.
 ---@return table
 function M.color()
-  local sade = package.loaded["sade"]
-  if not sade or not sade.state then
+  local ok, sade = pcall(require, "sade")
+  if not ok or type(sade) ~= "table" or not sade.state or not sade.state.index then
     return {}
   end
 
