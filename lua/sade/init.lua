@@ -62,47 +62,143 @@ function M.setup(opts)
     seed.run(M.state.sade_root, M.state.project_root)
   end, { desc = "Show seed modal with node status and seeding options" })
 
-  vim.api.nvim_create_user_command("SadeAgent", function()
+  vim.api.nvim_create_user_command("SadePrompt", function()
     if not M.state then
       vim.notify("[sade] not initialized. Run :SadeInit", vim.log.levels.WARN)
       return
     end
 
-    -- Get current file info for context
-    local buf_path = vim.api.nvim_buf_get_name(0)
-    local idx = M.state.index
-    local node_ids = {}
-    if buf_path ~= "" then
-      node_ids = require("sade.index").query(idx, buf_path)
-    end
+    local visual = require("sade.ops.visual")
+    local selection = visual.get_visual_selection()
 
-    -- Show input dialog for prompt
-    local ui = require("sade.ui")
-    local prompt_title = "SADE · Agent"
-    local prompt_desc = ""
-    if #node_ids > 0 then
-      prompt_desc = "Nodes: " .. table.concat(node_ids, ", ")
-    elseif buf_path ~= "" then
-      prompt_desc = "No node mapped for current file"
+    if selection then
+      -- Visual mode: show input dialog to get prompt, then execute with selection
+      local buf_path = vim.api.nvim_buf_get_name(0)
+      local idx = M.state.index
+      local node_ids = {}
+      if buf_path ~= "" then
+        node_ids = require("sade.index").query(idx, buf_path)
+      end
+
+      local ui = require("sade.ui")
+      local prompt_title = "SADE · Prompt (selection)"
+      local prompt_desc = "Query about selected code"
+      if #node_ids > 0 then
+        prompt_desc = prompt_desc .. " | Nodes: " .. table.concat(node_ids, ", ")
+      end
+
+      ui.input(prompt_title, {
+        placeholder = "What do you want? (e.g., 'explain this', 'refactor this')",
+        default = "",
+        on_submit = function(text)
+          log.info("SadePrompt visual invoked", { prompt = text, sade_root = M.state.sade_root })
+          visual.run_visual(M.state.sade_root, M.state.index, { prompt = text })
+        end,
+      })
     else
-      prompt_desc = "No file open"
+      -- No selection: open prompt buffer
+      local prompt = require("sade.prompt")
+
+      -- Get current file info for context
+      local buf_path = vim.api.nvim_buf_get_name(0)
+      local idx = M.state.index
+      local node_ids = {}
+      if buf_path ~= "" then
+        node_ids = require("sade.index").query(idx, buf_path)
+      end
+
+      local default_text = ""
+      if #node_ids > 0 then
+        default_text = "-- Context: nodes " .. table.concat(node_ids, ", ") .. "\n"
+      elseif buf_path ~= "" then
+        default_text = "-- Context: " .. buf_path .. " (not mapped to a node)\n"
+      else
+        default_text = "-- Context: no file open\n"
+      end
+
+      prompt.open({
+        title = "SADE · Prompt",
+        default_text = default_text,
+        on_submit = function(text)
+          log.info("SadePrompt invoked", { prompt = text, sade_root = M.state.sade_root })
+          agent.invoke(M.state.sade_root, M.state.index, { prompt = text })
+        end,
+        on_cancel = function()
+          -- Nothing to do
+        end,
+      })
+    end
+  end, { desc = "Prompt agent with selection or open prompt buffer", nargs = "?" })
+
+  vim.api.nvim_create_user_command("SadeSetup", function()
+    log.set_area("init")
+    log.info("SadeSetup command invoked")
+
+    -- Open a popup to show loading state
+    local ui = require("sade.ui")
+    local loading_bufnr
+
+    -- Show loading spinner
+    local spinner_frames = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
+    local frame = 1
+    local timer = vim.uv.new_timer()
+
+    local function update_spinner()
+      frame = (frame % #spinner_frames) + 1
+      if loading_bufnr and vim.api.nvim_buf_is_valid(loading_bufnr) then
+        local lines = {
+          "",
+          "  " .. spinner_frames[frame] .. " Scanning for coding agents...",
+          "",
+          "  Detecting available agent CLIs...",
+        }
+        vim.api.nvim_buf_set_lines(loading_bufnr, 0, -1, false, lines)
+      end
     end
 
-    ui.input(prompt_title, {
-      placeholder = "What do you want the agent to do? (e.g., 'fix useEffect loop')",
-      default = "",
-      on_submit = function(text)
-        log.info("SadeAgent command invoked", { prompt = text, sade_root = M.state.sade_root })
-        agent.invoke(M.state.sade_root, M.state.index, { prompt = text })
-      end,
-    })
-  end, { desc = "Invoke agent with current file's context", nargs = "?" })
+    -- Start spinner
+    timer:start(0, 80, function()
+      vim.schedule(update_spinner)
+    end)
 
-  vim.api.nvim_create_user_command("SadeAgentSetup", function()
-    log.set_area("init")
-    log.info("SadeAgentSetup command invoked")
-    agent.setup_interactive()
-  end, { desc = "Select which agent CLI to use" })
+    -- Show initial popup
+    loading_bufnr = ui.popup({
+      "",
+      "  ⠋ Scanning for coding agents...",
+      "",
+      "  Detecting available agent CLIs...",
+    }, { title = "SADE · Setup", close = false })
+
+    -- Run the detection
+    local available = agent.detect()
+
+    -- Stop spinner
+    timer:stop()
+    timer:close()
+
+    -- Close loading popup
+    if loading_bufnr and vim.api.nvim_buf_is_valid(loading_bufnr) then
+      vim.api.nvim_buf_delete(loading_bufnr, { force = true })
+    end
+
+    if #available == 0 then
+      vim.notify("[sade] No agent CLIs found", vim.log.levels.WARN)
+      return
+    end
+
+    -- Show selection
+    local items = {}
+    for _, a in ipairs(available) do
+      table.insert(items, {
+        label = ("%s  ·  v%s"):format(a.name, a.version),
+        value = a.id,
+      })
+    end
+
+    ui.select("SADE · Select Agent", items, function(item)
+      agent.set(item.value)
+    end)
+  end, { desc = "Scan for agent CLIs and configure" })
 
   vim.api.nvim_create_user_command("SadeStop", function()
     log.set_area("init")
@@ -121,16 +217,12 @@ function M.setup(opts)
 
   vim.api.nvim_create_user_command("SadeHelp", function()
     M.help()
-  end, { desc = "Show SADE command reference" })
+  end, { desc = "Show SADE command reference and guide" })
 
   vim.api.nvim_create_user_command("Sade", function()
     local node_actions = require("sade.node_actions")
     node_actions.show_actions()
   end, { desc = "Show node actions: improve, compact, unmap (use telescope if available)" })
-
-  vim.api.nvim_create_user_command("SadeGuide", function()
-    M.guide()
-  end, { desc = "Show SADE philosophy and workflow guide" })
 
   vim.api.nvim_create_user_command("SadeUpkeep", function()
     if not M.state then
@@ -154,48 +246,17 @@ function M.setup(opts)
   end
 
   -- Keyboard shortcuts (configurable via config.values.shortcuts)
-  if config.values.shortcuts.agent then
-    vim.keymap.set("n", config.values.shortcuts.agent, function()
-      if not M.state then
-        vim.notify("[sade] not initialized. Run :SadeInit", vim.log.levels.WARN)
-        return
-      end
-
-      -- Get current file info for context
-      local buf_path = vim.api.nvim_buf_get_name(0)
-      local idx = M.state.index
-      local node_ids = {}
-      if buf_path ~= "" then
-        node_ids = index.query(idx, buf_path)
-      end
-
-      -- Show input dialog for prompt
-      local prompt_title = "SADE · Agent"
-      local prompt_desc = ""
-      if #node_ids > 0 then
-        prompt_desc = "Nodes: " .. table.concat(node_ids, ", ")
-      elseif buf_path ~= "" then
-        prompt_desc = "No node mapped for current file"
-      else
-        prompt_desc = "No file open"
-      end
-
-      sade_ui.input(prompt_title, {
-        placeholder = "What do you want the agent to do?",
-        default = "",
-        on_submit = function(text)
-          log.info("SadeAgent keymap invoked", { prompt = text, sade_root = M.state.sade_root })
-          agent.invoke(M.state.sade_root, M.state.index, { prompt = text })
-        end,
-      })
-    end, { desc = "SADE: Invoke agent with context" })
+  if config.values.shortcuts.prompt then
+    vim.keymap.set("n", config.values.shortcuts.prompt, function()
+      vim.cmd("SadePrompt")
+    end, { desc = "SADE: Prompt agent (opens buffer or uses selection)" })
   end
 
-  -- Also map for uppercase variant (if different from agent)
-  if config.values.shortcuts.agent_cmd and config.values.shortcuts.agent_cmd ~= config.values.shortcuts.agent then
-    vim.keymap.set("n", config.values.shortcuts.agent_cmd, function()
-      vim.cmd("SadeAgent")
-    end, { desc = "SADE: Invoke agent (command)" })
+  -- Also map for uppercase variant (if different from prompt)
+  if config.values.shortcuts.prompt_cmd and config.values.shortcuts.prompt_cmd ~= config.values.shortcuts.prompt then
+    vim.keymap.set("n", config.values.shortcuts.prompt_cmd, function()
+      vim.cmd("SadePrompt")
+    end, { desc = "SADE: Prompt agent (command)" })
   end
 end
 
@@ -290,7 +351,7 @@ function M.info()
   vim.notify(table.concat(lines, "\n"))
 end
 
---- Show command reference popup.
+--- Show command reference and philosophy guide.
 function M.help()
   local lines = {
     "",
@@ -315,14 +376,14 @@ function M.help()
     "    q                    Close tree",
     "",
     "  ╭─────────────────────────────────────────────────────────╮",
-    "  │                  CONTEXT & AGENTS                       │",
+    "  │                  CONTEXT & PROMPT                      │",
     "  ╰─────────────────────────────────────────────────────────╯",
     "",
     "  :SadeContext           Copy current file's context to clipboard",
     "  :SadeSeed              Generate seed prompt for initial nodes",
-    "  :SadeAgent / <leader>a  Invoke agent with context (opens input dialog)",
-    "                        Shortcut configurable via config.shortcuts.agent",
-    "  :SadeAgentSetup        Pick which agent CLI to use",
+    "  :SadePrompt            Prompt agent (opens buffer, :w:q to submit)",
+    "                        Select text first for targeted queries",
+    "  :SadeSetup            Scan for agent CLIs and configure",
     "",
     "  ╭─────────────────────────────────────────────────────────╮",
     "  │                      UPKEEP                             │",
@@ -333,7 +394,7 @@ function M.help()
     "    R                    Rebuild index after manual edits",
     "",
     "  ╭─────────────────────────────────────────────────────────╮",
-    "  │                    HEARTBEAT                            │",
+    "  │                    HEARTBEAT                           │",
     "  ╰─────────────────────────────────────────────────────────╯",
     "",
     "  :SadeHeartbeatStop     Stop file watcher",
@@ -344,83 +405,23 @@ function M.help()
     "    ●                    File was changed, now settled (dim blue)",
     "",
     "  ╭─────────────────────────────────────────────────────────╮",
-    "  │                      HELP                              │",
+    "  │                      ABOUT                              │",
     "  ╰─────────────────────────────────────────────────────────╯",
     "",
-    "  :SadeHelp              This window",
-    "  :SadeGuide             Philosophy and workflow guide",
+    "  SADE = Software Architecture Description Engine",
+    "",
+    "  Describe your architecture in .sade/nodes/*.md",
+    "  Each node is a responsibility, not a folder.",
+    "",
+    "  Heartbeat watches for changes. When an agent writes",
+    "  to files, you see which architectural nodes are active.",
+    "",
+    "  Nodes are human-maintained, agent-consumed.",
     "",
     "  Press q or Esc to close",
     "",
   }
   sade_ui.popup(lines, { title = "SADE · Help" })
-end
-
---- Show philosophy and workflow guide popup.
-function M.guide()
-  local lines = {
-    "",
-    "  ╭─────────────────────────────────────────────────────────────╮",
-    "  │                        S A D E                              │",
-    "  │           Software Architecture Description Engine          │",
-    "  ╰─────────────────────────────────────────────────────────────╯",
-    "",
-    "  The problem:",
-    "",
-    "    Coding agents are fast. They modify dozens of files across",
-    "    your codebase in seconds. You — the human architect — need",
-    "    to keep up. But you can't read every diff in real time.",
-    "",
-    "  The insight:",
-    "",
-    "    You don't need to see every line. You need to see which",
-    "    parts of your architecture are being touched, and trust",
-    "    that agents have the right context to make good decisions.",
-    "",
-    "  How SADE works:",
-    "",
-    "    1. You describe your architecture in .sade/nodes/*.md",
-    "       Each node is a responsibility — not a folder, but a",
-    "       concern: \"auth\", \"database\", \"api-routes\".",
-    "",
-    "    2. Heartbeat watches for changes. When an agent writes",
-    "       to files, you see which architectural nodes are active.",
-    "       Orange spinner = happening now. Blue dot = changed.",
-    "",
-    "    3. Super Tree shows your architecture, not your filesystem.",
-    "       Expand nodes to see their files. Spot unmapped files",
-    "       that need a home.",
-    "",
-    "    4. Context injection feeds the right .sade/ contracts to",
-    "       agents before they start. They know the rules for the",
-    "       part of the system they're touching.",
-    "",
-    "  The workflow:",
-    "",
-    "    ┌──────────┐     ┌──────────┐     ┌──────────┐",
-    "    │  You     │────▶│  Agent   │────▶│  You     │",
-    "    │  scope   │     │  works   │     │  review  │",
-    "    │  intent  │     │  with    │     │  via     │",
-    "    │  + node  │     │  context │     │  tree    │",
-    "    └──────────┘     └──────────┘     └──────────┘",
-    "",
-    "  Getting started:",
-    "",
-    "    1. Create .sade/ in your project root",
-    "    2. Add README.md (what the project is)",
-    "    3. Add SKILL.md (coding patterns, constraints)",
-    "    4. Run :SadeSeed to generate initial nodes",
-    "    5. Review and adjust the generated nodes/*.md",
-    "    6. Run :SadeAgentSetup to pick your agent CLI",
-    "    7. Use :SadeAgent or <leader>a for context-aware agent",
-    "",
-    "    • Nodes are responsibilities, not folders",
-    "    • .sade/ is human-maintained, agent-consumed",
-    "",
-    "  Press q or Esc to close",
-    "",
-  }
-  sade_ui.popup(lines, { title = "SADE · Guide" })
 end
 
 return M

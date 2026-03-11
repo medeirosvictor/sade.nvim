@@ -222,7 +222,7 @@ end
 --- Invoke the agent with context for the given file or node.
 ---@param sade_root string
 ---@param idx SadeIndex
----@param opts? { filepath?: string, node_id?: string, prompt?: string }
+---@param opts? { filepath?: string, node_id?: string, prompt?: string, stdout_callback?: fun(line: string), on_complete?: fun(response: string), on_error?: fun(err: string), selection?: { bufnr: number, start_row: number, start_col: number, end_row: number, end_col: number } }
 function M.invoke(sade_root, idx, opts)
   opts = opts or {}
   log.set_area("agent")
@@ -355,6 +355,10 @@ function M.invoke(sade_root, idx, opts)
           f:close()
         end
       end
+      -- Call stdout callback if provided (for visual mode streaming)
+      if opts.stdout_callback and data and data ~= "" then
+        opts.stdout_callback(data)
+      end
     end),
     stderr = vim.schedule_wrap(function(err, data)
       -- Handle error (e.g., pipe closed)
@@ -376,6 +380,17 @@ function M.invoke(sade_root, idx, opts)
       end
     end),
   }, vim.schedule_wrap(function(obj)
+    -- Collect response for visual mode
+    local response = nil
+    if opts.on_complete then
+      -- Read the log file to get the full response
+      local f = io.open(log_path, "r")
+      if f then
+        response = f:read("*a")
+        f:close()
+      end
+    end
+
     -- Append completion message to log
     local f = io.open(log_path, "a")
     if f then
@@ -394,6 +409,17 @@ function M.invoke(sade_root, idx, opts)
     -- Clean up temp file
     os.remove(ctx_file)
 
+    -- If on_complete callback is provided, call it (visual mode)
+    if opts.on_complete then
+      if obj.code == 0 then
+        opts.on_complete(response or "")
+      else
+        opts.on_error and opts.on_error("Agent exited with code " .. obj.code)
+      end
+      return
+    end
+
+    -- Default behavior (non-visual mode)
     -- Update tracking
     if obj.code == 0 then
       M.tracking:complete(request.id, "success")

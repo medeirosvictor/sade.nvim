@@ -6,10 +6,10 @@ M.defaults = {
 
   -- Keyboard shortcuts (set to false to disable a shortcut)
   shortcuts = {
-    -- Invoke agent with context (opens input dialog)
-    agent = "<leader>a",
-    -- Invoke agent via command (same as :SadeAgent)
-    agent_cmd = "<leader>A",
+    -- Invoke prompt (opens prompt buffer or selection-based)
+    prompt = "<leader>a",
+    -- Invoke prompt via command (same as :SadePrompt)
+    prompt_cmd = "<leader>A",
   },
 
   agent = {
