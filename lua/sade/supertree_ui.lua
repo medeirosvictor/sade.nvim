@@ -398,12 +398,13 @@ end
 ---@param response string  agent response text
 ---@param context? string  what was asked about (e.g., "node heartbeat")
 function M.show_response(response, context)
+  log.info("show_response called", { bufnr = ui.bufnr, winnr = ui.winnr })
   if not ui.bufnr or not vim.api.nvim_buf_is_valid(ui.bufnr) then
-    log.debug("show_response: buffer invalid", { bufnr = ui.bufnr })
+    log.info("show_response: buffer invalid", { bufnr = ui.bufnr })
     return
   end
   if not ui.winnr or not vim.api.nvim_win_is_valid(ui.winnr) then
-    log.debug("show_response: window invalid", { winnr = ui.winnr })
+    log.info("show_response: window invalid", { winnr = ui.winnr })
     return
   end
 
@@ -456,6 +457,8 @@ function M.show_response(response, context)
   end
   -- footer hint
   vim.api.nvim_buf_add_highlight(ui.bufnr, ns, "Comment", #lines - 1, 0, -1)
+
+  log.info("show_response: rendered", { line_count = #lines })
 end
 
 --- Dismiss response view and return to the tree.
