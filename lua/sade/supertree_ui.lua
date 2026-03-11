@@ -302,22 +302,8 @@ function M.open(idx)
     end
   end, opts)
   vim.keymap.set("n", "a", function()
-    local cursor = vim.api.nvim_win_get_cursor(ui.winnr)
-    local entry = ui.entries[cursor[1]]
-    if not entry then
-      return
-    end
-    local agent_mod = require("sade.agent")
-    local sade = require("sade")
-    if not sade.state then
-      vim.notify("[sade] not initialized", vim.log.levels.WARN)
-      return
-    end
-    if entry.type == "node" and entry.id then
-      agent_mod.invoke(sade.state.sade_root, sade.state.index, { node_id = entry.id })
-    elseif entry.type == "file" and entry.filepath then
-      agent_mod.invoke(sade.state.sade_root, sade.state.index, { filepath = entry.filepath })
-    end
+    -- Just trigger SadePrompt which adapts to tree context
+    vim.cmd("SadePrompt")
   end, opts)
   -- Node action keybinds
   vim.keymap.set("n", "i", function()

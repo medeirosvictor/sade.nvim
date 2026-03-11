@@ -208,7 +208,7 @@ function M.build_entries(idx, expanded_state, agent_running)
   })
   table.insert(entries, {
     type = "legend",
-    label = "K edit · a agent · q quit",
+    label = "K edit · a ask · q quit",
     depth = 0,
   })
 
