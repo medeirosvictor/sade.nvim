@@ -296,6 +296,10 @@ function M.show_message(opts)
   -- Set content
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, content)
 
+  -- Make buffer read-only (non-editable)
+  vim.bo[bufnr].modifiable = false
+  vim.bo[bufnr].readonly = true
+
   -- Create legend window at the bottom
   local legend_bufnr = vim.api.nvim_create_buf(false, true)
   vim.bo[legend_bufnr].buftype = "nofile"

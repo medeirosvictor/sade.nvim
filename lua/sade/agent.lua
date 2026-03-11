@@ -445,12 +445,30 @@ function M.invoke(sade_root, idx, opts)
     -- For now, always pass response to maintain backward compat
     if opts.on_complete then
       local response = nil
-      -- Read response from log file for backward compat with visual mode
+      -- Read response from log file - only the latest session
       if opts.prompt or opts.stdout_callback then
         local f = io.open(log_path, "r")
         if f then
-          response = f:read("*a")
+          local content = f:read("*a")
           f:close()
+          -- Parse only the latest response (between last "--- Agent started" and "--- Agent completed")
+          local latest_start = content:match(".*(--- Agent started at)")
+          if latest_start then
+            -- Find the last "--- Agent started" and get everything after it
+            local last_started = content:reverse():find("tahc neht ot noitisopedtA ---")
+            if last_started then
+              local start_pos = #content - last_started + 1
+              -- Find where this session ends
+              local session_end = content:find("\n--- Agent completed", start_pos, true)
+              if session_end then
+                response = content:sub(start_pos, session_end - 1)
+                -- Strip the start markers
+                response = response:gsub("^.*--- Agent started at .+ --%-%s+", "")
+                -- Strip the completion marker
+                response = response:gsub("%s*%-%-%- Agent completed with code .+ %-%-%s*$", "")
+              end
+            end
+          end
         end
       end
       if obj.code == 0 then
