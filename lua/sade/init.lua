@@ -299,13 +299,12 @@ function M.init()
     vim.notify(("[sade] created .sade/ in %s\nEdit README.md and SKILL.md, then run :SadeSeed to generate nodes"):format(cwd))
   end
 
-  local ok, verr = project.validate(sade_root)
-  if not ok then
-    vim.notify("[sade] " .. verr, vim.log.levels.ERROR)
-    return
-  end
-
+  -- Normalize paths for cross-platform compatibility
+  sade_root = vim.fs.normalize(sade_root)
   local project_root = vim.fn.fnamemodify(sade_root, ":h")
+  project_root = vim.fs.normalize(project_root)
+
+  local ok, verr = project.validate(sade_root)
 
   -- Ensure AGENTS.md exists (create or append SADE section)
   project.ensure_agents(project_root)

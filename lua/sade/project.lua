@@ -8,11 +8,13 @@ local M = {}
 ---@return string|nil error
 function M.find_root(start)
   local dir = start or vim.uv.cwd()
+  -- Normalize initial directory
+  dir = vim.fs.normalize(dir)
   while dir do
     local sade = dir .. "/.sade"
     local stat = vim.uv.fs_stat(sade)
     if stat and stat.type == "directory" then
-      return sade
+      return vim.fs.normalize(sade)
     end
     local parent = vim.fn.fnamemodify(dir, ":h")
     if parent == dir then
@@ -111,6 +113,7 @@ end
 ---@param project_root string  absolute path to the project root
 ---@return string sade_root  absolute path to the created .sade/
 function M.scaffold(project_root)
+  project_root = vim.fs.normalize(project_root)
   local sade_root = project_root .. "/.sade"
   vim.fn.mkdir(sade_root .. "/nodes", "p")
 
@@ -148,7 +151,7 @@ function M.scaffold(project_root)
     append_agents_section(project_root)
   end
 
-  return sade_root
+  return vim.fs.normalize(sade_root)
 end
 
 --- Load agent config for a project.
