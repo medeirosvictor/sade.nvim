@@ -339,10 +339,10 @@ function M.init()
     vim.notify("[sade] no nodes found — run :SadeSeed to generate from codebase", vim.log.levels.INFO)
   end
 
-  -- Auto-open Super Tree if configured
+  -- Auto-open Super Tree if configured (without stealing focus)
   if config.values.tree.auto_open then
     vim.defer_fn(function()
-      supertree_ui.toggle(M.state.index)
+      supertree_ui.toggle(M.state.index, { focus = false })
     end, 100)
   end
 end

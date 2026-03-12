@@ -246,14 +246,29 @@ end
 
 --- Create the tree buffer and window.
 ---@param idx SadeIndex
-function M.open(idx)
-  -- if already open, focus it
+---@param opts? { focus?: boolean }
+function M.open(idx, opts)
+  opts = opts or {}
+  local should_focus = opts.focus ~= false  -- default: focus
+
+  -- if already open, focus it (only if requested)
   if ui.winnr and vim.api.nvim_win_is_valid(ui.winnr) then
-    vim.api.nvim_set_current_win(ui.winnr)
+    if should_focus then
+      vim.api.nvim_set_current_win(ui.winnr)
+    end
     return
   end
 
   ui.idx = idx
+
+  -- Close NvimTree if open (they compete for the same side)
+  local nvt_ok, nvt_api = pcall(require, "nvim-tree.api")
+  if nvt_ok and nvt_api.tree and nvt_api.tree.is_visible and nvt_api.tree.is_visible() then
+    nvt_api.tree.close()
+  end
+
+  -- Remember which window to return focus to
+  local prev_win = vim.api.nvim_get_current_win()
 
   -- create buffer
   ui.bufnr = vim.api.nvim_create_buf(false, true)
@@ -351,6 +366,11 @@ function M.open(idx)
       ui.winnr = nil
     end,
   })
+
+  -- Restore focus to previous window if not explicitly focusing the tree
+  if not should_focus and vim.api.nvim_win_is_valid(prev_win) then
+    vim.api.nvim_set_current_win(prev_win)
+  end
 end
 
 --- Close the tree window.
@@ -365,15 +385,19 @@ end
 
 --- Focus the tree: open if closed, focus if open but not active, close if focused.
 ---@param idx SadeIndex
-function M.toggle(idx)
+---@param opts? { focus?: boolean }
+function M.toggle(idx, opts)
+  opts = opts or {}
   if ui.winnr and vim.api.nvim_win_is_valid(ui.winnr) then
     if vim.api.nvim_get_current_win() == ui.winnr then
       M.close()
     else
-      vim.api.nvim_set_current_win(ui.winnr)
+      if opts.focus ~= false then
+        vim.api.nvim_set_current_win(ui.winnr)
+      end
     end
   else
-    M.open(idx)
+    M.open(idx, opts)
   end
 end
 
