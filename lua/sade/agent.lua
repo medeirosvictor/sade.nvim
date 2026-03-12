@@ -41,11 +41,13 @@ end
 ---@return { id: string, name: string, version: string }[]
 function M.detect()
   ensure_providers()
+  -- Use platform-appropriate stderr redirection
+  local stderr_redirect = vim.fn.has("win32") == 1 and " 2>NUL" or " 2>/dev/null"
   local available = {}
   for _, id in ipairs(PROVIDER_IDS) do
     local provider = M.providers[id]
     if provider then
-      local handle = io.popen(provider.check .. " 2>/dev/null")
+      local handle = io.popen(provider.check .. stderr_redirect)
       if handle then
         local output = handle:read("*a")
         handle:close()
@@ -329,7 +331,16 @@ function M.invoke(sade_root, idx, opts)
   local cmd_str = provider.build_cmd(ctx_file, opts.prompt or "")
 
   -- prepend cd to project root so agent runs in the right directory
-  local full_cmd = { "sh", "-c", "cd " .. vim.fn.shellescape(project_root) .. " && " .. cmd_str }
+  -- Use platform-appropriate shell
+  local is_windows = vim.fn.has("win32") == 1
+  local full_cmd
+  if is_windows then
+    -- Windows: use cmd /c
+    full_cmd = { "cmd", "/c", "cd /d " .. vim.fn.shellescape(project_root) .. " && " .. cmd_str }
+  else
+    -- Unix: use sh -c
+    full_cmd = { "sh", "-c", "cd " .. vim.fn.shellescape(project_root) .. " && " .. cmd_str }
+  end
 
   log.debug("Agent command built", {
     provider = provider.name,
