@@ -335,6 +335,10 @@ function M.invoke(sade_root, idx, opts)
     ctx_file = write_context_file(ctx)
   end
 
+  -- Normalize paths for Windows compatibility
+  ctx_file = normalize_path(ctx_file)
+  local project_root_normalized = normalize_path(project_root)
+
   -- build command via provider
   local cmd_str = provider.build_cmd(ctx_file, opts.prompt or "")
 
@@ -344,7 +348,7 @@ function M.invoke(sade_root, idx, opts)
   local full_cmd
   if is_windows then
     -- Windows: use cmd /c
-    full_cmd = { "cmd", "/c", "cd /d " .. vim.fn.shellescape(project_root) .. " && " .. cmd_str }
+    full_cmd = { "cmd", "/c", "cd /d " .. vim.fn.shellescape(project_root_normalized) .. " && " .. cmd_str }
   else
     -- Unix: use sh -c
     full_cmd = { "sh", "-c", "cd " .. vim.fn.shellescape(project_root) .. " && " .. cmd_str }
@@ -357,7 +361,12 @@ function M.invoke(sade_root, idx, opts)
   })
 
   -- copy full command to clipboard
-  local clipboard_cmd = "cd " .. vim.fn.shellescape(project_root) .. " && " .. cmd_str
+  local clipboard_cmd
+  if is_windows then
+    clipboard_cmd = "cd /d " .. vim.fn.shellescape(project_root_normalized) .. " && " .. cmd_str
+  else
+    clipboard_cmd = "cd " .. vim.fn.shellescape(project_root) .. " && " .. cmd_str
+  end
   vim.fn.setreg("+", clipboard_cmd)
 
   local nodes_str = #node_ids > 0 and table.concat(node_ids, ", ") or "none"
