@@ -17,48 +17,6 @@ local function normalize_path(path)
   return vim.fs.normalize(path)
 end
 
---- Get the current shell that Neovim is using.
---- This is more reliable than detecting available shells.
----@return { cmd: string, args: string[], name: string } shell info
-local function get_shell()
-  local shell = vim.o.shell
-  local shellcmdflag = vim.o.shellcmdflag
-
-  log.debug("nvim shell config", { shell = shell, shellcmdflag = shellcmdflag })
-
-  -- Parse shellcmdflag to extract args
-  -- Common patterns:
-  -- - Unix: "-c" (shellcmdflag = "-c")
-  -- - Windows cmd: "/c" (shellcmdflag = "/c")
-  -- - Windows PowerShell: "-Command" (shellcmdflag = "-Command")
-
-  local args = {}
-  if shellcmdflag and shellcmdflag ~= "" then
-    -- Split shellcmdflag by spaces (handles "-Command" or "-c")
-    for arg in shellcmdflag:gmatch("%S+") do
-      table.insert(args, arg)
-    end
-  else
-    -- Fallback to common defaults
-    if vim.fn.has("win32") == 1 then
-      args = { "/c" }
-    else
-      args = { "-c" }
-    end
-  end
-
-  -- Extract name for logging
-  local name = shell:match("([^/\\]+)$") or shell
-
-  log.debug("Using shell from nvim config", { shell = name, cmd = shell, args = args })
-
-  return {
-    cmd = shell,
-    args = args,
-    name = name,
-  }
-end
-
 --- Provider registry — loaded lazily from lua/sade/providers/*.lua
 ---@type table<string, SadeProvider>
 M.providers = {}
@@ -381,30 +339,36 @@ function M.invoke(sade_root, idx, opts)
   ctx_file = normalize_path(ctx_file)
   local project_root_normalized = normalize_path(project_root)
 
-  -- build command via provider
+  -- build command via provider (returns a string like "pi -p ...")
   local cmd_str = provider.build_cmd(ctx_file, opts.prompt or "")
 
-  -- prepend cd to project root so agent runs in the right directory
-  -- Use dynamically detected shell for cross-platform compatibility
-  local shell = get_shell()
-  local cd_cmd = "cd " .. vim.fn.shellescape(project_root_normalized or project_root) .. " && " .. cmd_str
-  local full_cmd = { shell.cmd, unpack(shell.args), cd_cmd }
+  -- Parse command string into table for vim.system()
+  -- This avoids shell escaping issues on different OSs
+  local cmd_parts = {}
+  for part in cmd_str:gmatch("%S+") do
+    table.insert(cmd_parts, part)
+  end
+
+  -- Use vim.system()'s cwd option instead of shell wrapping
+  -- This is cross-platform compatible (works on Windows, macOS, Linux)
+  -- and avoids shell escaping issues
+  local full_cmd = cmd_parts
+  local cwd = project_root_normalized
 
   log.debug("Agent command built", {
     provider = provider.name,
-    shell = shell.name,
     cmd = full_cmd,
+    cwd = cwd,
     nodes = node_ids,
   })
 
-  -- copy full command to clipboard
-  local clipboard_cmd = "cd " .. vim.fn.shellescape(project_root_normalized or project_root) .. " && " .. cmd_str
-  vim.fn.setreg("+", clipboard_cmd)
+  -- copy full command to clipboard (for user reference)
+  vim.fn.setreg("+", cmd_str)
 
   local nodes_str = #node_ids > 0 and table.concat(node_ids, ", ") or "none"
 
   -- Track this request
-  local request = M.tracking:track(clipboard_cmd, provider.name)
+  local request = M.tracking:track(cmd_str, provider.name)
 
   -- Start throbber
   start_throbber()
@@ -428,9 +392,10 @@ function M.invoke(sade_root, idx, opts)
     log_file:close()
   end
 
-  -- Run using vim.system() (modern API)
+  -- Run using vim.system() with cwd option for cross-platform working directory
   local proc = vim.system(full_cmd, {
     text = true,
+    cwd = cwd,  -- Set working directory directly (cross-platform)
     stdout = vim.schedule_wrap(function(err, data)
       -- Handle error (e.g., pipe closed)
       if err then
