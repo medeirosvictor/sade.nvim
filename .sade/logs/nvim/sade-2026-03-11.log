@@ -356,3 +356,161 @@
   node_count: 17
 [2026-03-11 15:43:12] [INFO] [sade] node_watcher: started
   watch_dir: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+[2026-03-11 15:52:30] [INFO] [sade] sade.nvim logging initialized
+  log_file: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade/logs/nvim/sade-2026-03-11.log"
+[2026-03-11 15:52:30] [INFO] [sade] SADE initialized
+  sade_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+  file_count: 40
+  project_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim"
+  node_count: 17
+[2026-03-11 15:52:31] [INFO] [sade] node_watcher: started
+  watch_dir: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+[2026-03-11 16:02:34] [INFO] [sade] sade.nvim logging initialized
+  log_file: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade/logs/nvim/sade-2026-03-11.log"
+[2026-03-11 16:02:34] [INFO] [sade] SADE initialized
+  sade_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+  file_count: 40
+  node_count: 17
+  project_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim"
+[2026-03-11 16:02:35] [INFO] [sade] node_watcher: started
+  watch_dir: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+[2026-03-11 16:12:44] [INFO] [sade] sade.nvim logging initialized
+  log_file: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade/logs/nvim/sade-2026-03-11.log"
+[2026-03-11 16:12:44] [INFO] [sade] SADE initialized
+  node_count: 17
+  sade_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+  file_count: 40
+  project_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim"
+[2026-03-11 16:12:44] [INFO] [sade] node_watcher: started
+  watch_dir: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+[2026-03-11 16:22:36] [INFO] [sade] SadePrompt invoked
+  prompt: "delete the phases that were already completed in this file pls\n-- Context: nodes plugin-core"
+  sade_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+[2026-03-11 16:22:36] [INFO] [agent] Using provider
+  provider: "pi"
+[2026-03-11 16:22:36] [INFO] [agent] Starting agent
+  nodes: "none"
+  pid: 52128
+  provider: "pi"
+[2026-03-11 16:23:40] [INFO] [agent] Agent completed
+  signal: 0
+  code: 0
+[2026-03-11 16:50:25] [INFO] [sade] sade.nvim logging initialized
+  log_file: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade/logs/nvim/sade-2026-03-11.log"
+[2026-03-11 16:50:25] [INFO] [sade] SADE initialized
+  node_count: 17
+  sade_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+  project_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim"
+  file_count: 40
+[2026-03-11 16:50:25] [INFO] [sade] node_watcher: started
+  watch_dir: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+[2026-03-11 16:50:57] [INFO] [sade] SadePrompt tree invoked
+  context: "node plugin-core"
+  prompt: "List the files that are currently mapped in this core that might not need to be (dont make any changes)\n\n-- Context: node plugin-core"
+[2026-03-11 16:50:57] [INFO] [agent] Using provider
+  provider: "pi"
+[2026-03-11 16:50:57] [INFO] [agent] Starting agent
+  pid: 66172
+  nodes: "none"
+  provider: "pi"
+[2026-03-11 16:51:42] [INFO] [agent] Agent completed
+  signal: 0
+  code: 0
+[2026-03-11 16:54:35] [INFO] [sade] sade.nvim logging initialized
+  log_file: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade/logs/nvim/sade-2026-03-11.log"
+[2026-03-11 16:54:35] [INFO] [sade] SADE initialized
+  sade_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+  project_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim"
+  file_count: 40
+  node_count: 17
+[2026-03-11 16:54:35] [INFO] [sade] node_watcher: started
+  watch_dir: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+[2026-03-11 16:55:12] [INFO] [sade] SadePrompt tree invoked
+  context: "node parser"
+  prompt: "are there any unmapped files that should be here? (just list the files dont do any changes to the node)\n\n-- Context: node parser"
+[2026-03-11 16:55:12] [INFO] [agent] Using provider
+  provider: "pi"
+[2026-03-11 16:55:12] [INFO] [agent] Starting agent
+  provider: "pi"
+  nodes: "none"
+  pid: 72407
+[2026-03-11 16:55:56] [INFO] [agent] Agent completed
+  signal: 0
+  code: 0
+[2026-03-11 16:55:56] [INFO] [agent] Agent complete, showing response
+  resp_len: 2278
+[2026-03-11 16:56:08] [INFO] [sade] sade.nvim logging initialized
+  log_file: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade/logs/nvim/sade-2026-03-11.log"
+[2026-03-11 16:56:08] [INFO] [sade] SADE initialized
+  node_count: 17
+  sade_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+  file_count: 40
+  project_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim"
+[2026-03-11 16:56:09] [INFO] [sade] node_watcher: started
+  watch_dir: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+[2026-03-11 16:56:46] [INFO] [sade] SadePrompt tree invoked
+  context: "node plugin-core"
+  prompt: "list me the unmapped files and make suggestions on where they should be, do not apply any changes\n-- Context: node plugin-core"
+[2026-03-11 16:56:46] [INFO] [agent] Using provider
+  provider: "pi"
+[2026-03-11 16:56:46] [INFO] [agent] Starting agent
+  pid: 75651
+  provider: "pi"
+  nodes: "none"
+[2026-03-11 16:58:47] [INFO] [agent] Agent completed
+  code: 0
+  signal: 0
+[2026-03-11 16:58:47] [INFO] [agent] Agent complete, showing response
+  resp_len: 3111
+[2026-03-11 17:04:45] [INFO] [sade] sade.nvim logging initialized
+  log_file: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade/logs/nvim/sade-2026-03-11.log"
+[2026-03-11 17:04:45] [INFO] [sade] SADE initialized
+  sade_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+  file_count: 40
+  project_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim"
+  node_count: 17
+[2026-03-11 17:04:46] [INFO] [sade] node_watcher: started
+  watch_dir: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+[2026-03-11 17:05:22] [INFO] [sade] SadePrompt tree invoked
+  prompt: "This node is empty, review the files and other nodes and list me options of what to do with it (no changes so far)\n-- Context: node visual"
+  context: "node visual"
+[2026-03-11 17:05:22] [INFO] [agent] Using provider
+  provider: "pi"
+[2026-03-11 17:05:22] [INFO] [agent] Starting agent
+  provider: "pi"
+  pid: 86867
+  nodes: "none"
+[2026-03-11 17:06:16] [INFO] [agent] Agent completed
+  signal: 0
+  code: 0
+[2026-03-11 17:06:16] [INFO] [agent] Agent complete, showing response
+  resp_len: 4188
+[2026-03-11 17:11:25] [INFO] [sade] sade.nvim logging initialized
+  log_file: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade/logs/nvim/sade-2026-03-11.log"
+[2026-03-11 17:11:25] [INFO] [sade] SADE initialized
+  sade_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+  project_root: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim"
+  node_count: 17
+  file_count: 40
+[2026-03-11 17:11:26] [INFO] [sade] node_watcher: started
+  watch_dir: "/Users/victormedeiros/Projects/personal/sade-mono/sade.nvim/.sade"
+[2026-03-12 11:18:14] [INFO] [sade] node_watcher: node file changed
+  filename: "nodes/prompt.md"
+[2026-03-12 11:18:14] [INFO] [sade] node_watcher: index rebuilt
+  node_count: 17
+  file_count: 41
+[2026-03-12 11:18:23] [INFO] [sade] node_watcher: node file changed
+  filename: "nodes/visual.md"
+[2026-03-12 11:18:23] [INFO] [sade] node_watcher: index rebuilt
+  node_count: 17
+  file_count: 43
+[2026-03-12 11:18:36] [INFO] [sade] node_watcher: node file changed
+  filename: "nodes/visual.md"
+[2026-03-12 11:18:37] [INFO] [sade] node_watcher: index rebuilt
+  node_count: 17
+  file_count: 42
+[2026-03-12 11:18:44] [INFO] [sade] node_watcher: node file changed
+  filename: "nodes/search.md"
+[2026-03-12 11:18:45] [INFO] [sade] node_watcher: index rebuilt
+  node_count: 18
+  file_count: 43

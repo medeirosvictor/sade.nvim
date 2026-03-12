@@ -2,51 +2,45 @@
 
 Coding patterns and constraints for agents working in this project.
 
-## Node Markdown Creation
+## Node Format
 
-When creating `.sade/nodes/*.md` files, use this structure:
+When creating or editing `.sade/nodes/*.md` files, use this structure:
 
 ```markdown
 # Node Label
 
 Brief description of what this component handles.
 
-## Layer
-frontend | application | domain | infrastructure
-
 ## Files
-list of relevant files (one per line, or comma-separated)
+- path/to/file.lua
+- path/to/other/**
 
-## Depends On
-- dependency-1
-- dependency-2
-
-## Used By
-- consumer-1
-- consumer-2
+## Notes
+Implementation details, constraints, decisions worth remembering.
 ```
+
+The parser extracts three things:
+- **Label + description** — the `# heading` and the paragraph below it
+- **Files** — list items under `## Files` (relative paths or globs)
+- **Notes** — text under `## Notes`
+
+Only `## Files` is functionally required — it drives the file→node index.
+Other `##` sections are ignored by the parser but still visible to agents via raw markdown injection.
 
 ### Example
 
 ```markdown
-# Deck Operations
+# Heartbeat
 
-Handles creation, editing, and persistence of decks.
-
-## Layer
-application
+Watch for external file changes and auto-reload Neovim buffers.
 
 ## Files
-internal/app/app_deck.go
-internal/app/app_deckops.go
+- lua/sade/heartbeat.lua
+- lua/sade/spinner.lua
 
-## Depends On
-- database
-- deck-parser
-
-## Used By
-- deck-view
-- import-system
+## Notes
+Uses libuv fs_event for recursive directory watching.
+Debounces rapid changes before reloading.
 ```
 
 ## .sade/ Maintenance
@@ -59,58 +53,7 @@ When you create, move, or delete files, update the relevant `.sade/nodes/*.md`:
 
 Do not invent nodes for things that don't exist yet. Nodes describe what is, not what should be.
 
-## JSON Graph (.sade/architecture.json)
-
-Maintain a `.sade/architecture.json` file alongside the markdown nodes. This provides a structured code graph for potential future use in LLM context injection benchmarking.
-
-The JSON should contain:
-- **nodes**: Responsibility groups with id, label, description, parent, files
-- **edges**: Relationships between nodes (contains, imports, calls, etc.)
-
-```json
-{
-  "version": "1.0",
-  "generated_by": "seed",
-  "nodes": [
-    {
-      "id": "deck-operations",
-      "label": "Deck Operations",
-      "description": "Handles creation, editing, and persistence of decks.",
-      "source": "user",
-      "parent": "app",
-      "files": [
-        "internal/app/app_deck.go",
-        "internal/app/app_deckops.go"
-      ],
-      "layer": "application"
-    }
-  ],
-  "edges": [
-    {
-      "source": "app",
-      "target": "deck-operations",
-      "type": "contains",
-      "provenance": "user"
-    },
-    {
-      "source": "deck-operations",
-      "target": "database",
-      "type": "depends_on",
-      "provenance": "user"
-    }
-  ]
-}
-```
-
-When updating nodes/edges in markdown, keep the JSON in sync:
-- New node → add to `nodes` array with unique `id`
-- New dependency → add edge with `type: "depends_on"`
-- New consumer → add edge with `type: "used_by"` (or "calls")
-- Deleted node → remove from `nodes` and any connected edges from `edges`
-
-## Agent Behavior in SADE Projects
-
-When working in a SADE-bootstrapped project, follow this workflow:
+## Agent Behavior
 
 ### Before Making Changes
 1. Read `.sade/README.md` to understand the project
@@ -125,11 +68,4 @@ When working in a SADE-bootstrapped project, follow this workflow:
 
 ### After Making Changes
 - Verify the node updates are correct
-- Check `.sade/architecture.json` remains in sync with the markdown nodes
-- If in doubt, run `:SadeUpkeep` (or equivalent) to check for issues
-
-### Self-Hosting
-This project (sade.nvim) uses SADE to manage itself. When modifying the plugin:
-- Read the relevant node contract before editing
-- Update the node after making file changes
-- Use `:SadeTree` to visualize the architecture
+- If in doubt, run `:SadeUpkeep` to check for unmapped files or empty nodes

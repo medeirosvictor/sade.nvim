@@ -1,15 +1,6 @@
 # Prompt Buffer
 
-Handles the interactive prompt buffer for multi-line prompts, with `#node` and `@file` completions.
-
-## Responsibilities
-
-- Open a dedicated buffer for composing prompts
-- Support multi-line prompts with markdown rendering
-- Handle submit (`:w` / Enter) and cancel (Escape / q) workflows
-- Manage buffer lifecycle (open/close)
-- Provide `#node` and `@file` completions in the prompt buffer
-- Resolve references at submit time (append injected context)
+Interactive prompt buffer for composing multi-line prompts with `#node` and `@file` completions. Supports submit via `:w`/Enter and cancel via Escape/q.
 
 ## Files
 - lua/sade/prompt.lua
