@@ -24,6 +24,8 @@ local function get_shell()
   local shell = vim.o.shell
   local shellcmdflag = vim.o.shellcmdflag
 
+  log.debug("nvim shell config", { shell = shell, shellcmdflag = shellcmdflag })
+
   -- Parse shellcmdflag to extract args
   -- Common patterns:
   -- - Unix: "-c" (shellcmdflag = "-c")
