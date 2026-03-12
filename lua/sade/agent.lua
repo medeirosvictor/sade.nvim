@@ -9,6 +9,14 @@ local throbber = require("sade.throbber")
 local tracking = require("sade.tracking")
 local heartbeat = require("sade.heartbeat")
 
+--- Normalize path separators for the current platform.
+--- Uses Neovim's built-in vim.fs.normalize() for cross-platform compatibility.
+---@param path string
+---@return string
+local function normalize_path(path)
+  return vim.fs.normalize(path)
+end
+
 --- Provider registry — loaded lazily from lua/sade/providers/*.lua
 ---@type table<string, SadeProvider>
 M.providers = {}
@@ -171,7 +179,7 @@ end
 ---@param ctx string
 ---@return string filepath
 local function write_context_file(ctx)
-  local tmpfile = vim.fn.tempname() .. ".md"
+  local tmpfile = normalize_path(vim.fn.tempname() .. ".md")
   local f = io.open(tmpfile, "w")
   if f then
     f:write(ctx)
@@ -188,7 +196,7 @@ local function write_prompt_file(sade_root, ctx)
   local prompts_dir = sade_root .. "/tmp/prompts"
   -- ensure directory exists
   vim.fn.mkdir(prompts_dir, "p")
-  local prompt_file = prompts_dir .. "/last_prompt.md"
+  local prompt_file = normalize_path(prompts_dir .. "/last_prompt.md")
   local f = io.open(prompt_file, "w")
   if f then
     f:write(ctx)
@@ -203,7 +211,7 @@ end
 local function get_agent_log_path(sade_root)
   local log_dir = sade_root .. "/tmp/logs"
   vim.fn.mkdir(log_dir, "p")
-  return log_dir .. "/agent.log"
+  return normalize_path(log_dir .. "/agent.log")
 end
 
 --- Start the throbber (spinner)
