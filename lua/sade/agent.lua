@@ -17,6 +17,46 @@ local function normalize_path(path)
   return vim.fs.normalize(path)
 end
 
+--- Get the current shell that Neovim is using.
+--- This is more reliable than detecting available shells.
+---@return { cmd: string, args: string[], name: string } shell info
+local function get_shell()
+  local shell = vim.o.shell
+  local shellcmdflag = vim.o.shellcmdflag
+
+  -- Parse shellcmdflag to extract args
+  -- Common patterns:
+  -- - Unix: "-c" (shellcmdflag = "-c")
+  -- - Windows cmd: "/c" (shellcmdflag = "/c")
+  -- - Windows PowerShell: "-Command" (shellcmdflag = "-Command")
+
+  local args = {}
+  if shellcmdflag and shellcmdflag ~= "" then
+    -- Split shellcmdflag by spaces (handles "-Command" or "-c")
+    for arg in shellcmdflag:gmatch("%S+") do
+      table.insert(args, arg)
+    end
+  else
+    -- Fallback to common defaults
+    if vim.fn.has("win32") == 1 then
+      args = { "/c" }
+    else
+      args = { "-c" }
+    end
+  end
+
+  -- Extract name for logging
+  local name = shell:match("([^/\\]+)$") or shell
+
+  log.debug("Using shell from nvim config", { shell = name, cmd = shell, args = args })
+
+  return {
+    cmd = shell,
+    args = args,
+    name = name,
+  }
+end
+
 --- Provider registry — loaded lazily from lua/sade/providers/*.lua
 ---@type table<string, SadeProvider>
 M.providers = {}
@@ -343,30 +383,20 @@ function M.invoke(sade_root, idx, opts)
   local cmd_str = provider.build_cmd(ctx_file, opts.prompt or "")
 
   -- prepend cd to project root so agent runs in the right directory
-  -- Use platform-appropriate shell
-  local is_windows = vim.fn.has("win32") == 1
-  local full_cmd
-  if is_windows then
-    -- Windows: use cmd /c
-    full_cmd = { "cmd", "/c", "cd /d " .. vim.fn.shellescape(project_root_normalized) .. " && " .. cmd_str }
-  else
-    -- Unix: use sh -c
-    full_cmd = { "sh", "-c", "cd " .. vim.fn.shellescape(project_root) .. " && " .. cmd_str }
-  end
+  -- Use dynamically detected shell for cross-platform compatibility
+  local shell = get_shell()
+  local cd_cmd = "cd " .. vim.fn.shellescape(project_root_normalized or project_root) .. " && " .. cmd_str
+  local full_cmd = { shell.cmd, unpack(shell.args), cd_cmd }
 
   log.debug("Agent command built", {
     provider = provider.name,
+    shell = shell.name,
     cmd = full_cmd,
     nodes = node_ids,
   })
 
   -- copy full command to clipboard
-  local clipboard_cmd
-  if is_windows then
-    clipboard_cmd = "cd /d " .. vim.fn.shellescape(project_root_normalized) .. " && " .. cmd_str
-  else
-    clipboard_cmd = "cd " .. vim.fn.shellescape(project_root) .. " && " .. cmd_str
-  end
+  local clipboard_cmd = "cd " .. vim.fn.shellescape(project_root_normalized or project_root) .. " && " .. cmd_str
   vim.fn.setreg("+", clipboard_cmd)
 
   local nodes_str = #node_ids > 0 and table.concat(node_ids, ", ") or "none"
