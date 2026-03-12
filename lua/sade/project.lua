@@ -40,7 +40,16 @@ function M.validate(sade_root)
   local skill = sade_root .. "/SKILL.md"
   stat = vim.uv.fs_stat(skill)
   if not stat then
-    return false, ".sade/SKILL.md missing"
+    -- Auto-create missing SKILL.md with simple template
+    local f = io.open(skill, "w")
+    if f then
+      f:write("# Coding Patterns\n\n"
+        .. "Describe coding style, constraints, and conventions for this project.\n\n"
+        .. "## Node Maintenance\n\n"
+        .. "When you create, move, or delete files, update the relevant `.sade/nodes/*.md`\n"
+        .. "to keep the architecture description accurate.\n")
+      f:close()
+    end
   end
 
   return true
@@ -125,7 +134,7 @@ function M.scaffold(project_root)
     "# Coding Patterns\n\n"
     .. "Describe coding style, constraints, and conventions for this project.\n\n"
     .. "## Node Maintenance\n\n"
-    .. "When you create, move, or delete files, update the relevant `.sade/nodes/*.md`\n"
+    .. "When you create, move, or delete files, update the relevant `.sade/nodes/*.md` and the architecture.json graph notation.\n"
     .. "to keep the architecture description accurate.\n")
 
   -- Create or append AGENTS.md
