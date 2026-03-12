@@ -8,6 +8,8 @@ M.defaults = {
   shortcuts = {
     -- Invoke prompt (adapts to context: tree, visual selection, or buffer)
     prompt = "<leader>ak",
+    -- Search codebase (results go to quickfix)
+    search = "<leader>as",
   },
 
   agent = {

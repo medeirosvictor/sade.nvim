@@ -29,4 +29,4 @@ Inspired by ThePrimeagen/99 - https://github.com/ThePrimeagen/99
 
 ## Files
 
-- `lua/sade/ops/visual.lua`
+- lua/sade/ops/visual.lua

@@ -84,7 +84,7 @@ function M.open(opts)
   vim.bo[legend_bufnr].modifiable = true
 
   -- Legend text with key bindings
-  local legend_lines = { " :w / Enter = submit  ·  q / Esc = cancel " }
+  local legend_lines = { " :w / Enter = submit  ·  q / Esc = cancel  ·  #node @file " }
   vim.api.nvim_buf_set_lines(legend_bufnr, 0, -1, false, legend_lines)
 
   -- Position legend below main window
@@ -147,6 +147,12 @@ function M.open(opts)
     end,
   })
 
+  -- Attach #node and @file completions
+  local ok_comp, completions = pcall(require, "sade.completions")
+  if ok_comp then
+    completions.attach(bufnr)
+  end
+
   -- Focus and start insert
   vim.api.nvim_set_current_win(winnr)
   vim.cmd("startinsert")
@@ -182,6 +188,12 @@ function M.submit()
   if prompt == "" or vim.trim(prompt) == "" then
     vim.notify("[sade] prompt is empty", vim.log.levels.WARN)
     return
+  end
+
+  -- Resolve #node and @file references into appended context
+  local ok_comp, completions = pcall(require, "sade.completions")
+  if ok_comp then
+    prompt = completions.resolve_prompt(prompt)
   end
 
   -- Store callback before closing

@@ -451,22 +451,30 @@ function M.invoke(sade_root, idx, opts)
         if f then
           local content = f:read("*a")
           f:close()
-          -- Parse only the latest response (between last "--- Agent started" and "--- Agent completed")
-          local latest_start = content:match(".*(--- Agent started at)")
-          if latest_start then
-            -- Find the last "--- Agent started" and get everything after it
-            local last_started = content:reverse():find("tahc neht ot noitisopedtA ---")
-            if last_started then
-              local start_pos = #content - last_started + 1
-              -- Find where this session ends
-              local session_end = content:find("\n--- Agent completed", start_pos, true)
-              if session_end then
-                response = content:sub(start_pos, session_end - 1)
-                -- Strip the start markers
-                response = response:gsub("^.*--- Agent started at .+ --%-%s+", "")
-                -- Strip the completion marker
-                response = response:gsub("%s*%-%-%- Agent completed with code .+ %-%-%s*$", "")
-              end
+          -- Parse only the latest response (between last "--- Agent started at" and "--- Agent completed")
+          -- Find the LAST occurrence of "--- Agent started at" (not the first)
+          local last_start = 0
+          local pos = 1
+          while true do
+            local found = content:find("--- Agent started at", pos, true)
+            if not found then
+              break
+            end
+            last_start = found
+            pos = found + 1
+          end
+
+          if last_start > 0 then
+            -- Find where this session ends
+            local session_end = content:find("\n--- Agent completed", last_start, true)
+            if session_end then
+              response = content:sub(last_start, session_end - 1)
+              -- Strip the start marker line and metadata header
+              -- Format: "--- Agent started at ...\nNodes: ...\nContext: ...\n\n<response>"
+              response = response:gsub("^--- Agent started at.-\n", "")
+              response = response:gsub("^Nodes:.-\n", "")
+              response = response:gsub("^Context:.-\n", "")
+              response = response:gsub("^\n+", "")
             end
           end
         end

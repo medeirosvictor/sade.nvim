@@ -87,6 +87,15 @@ function M.setup(opts)
     end
   end, { desc = "Prompt agent — adapts to tree selection, visual selection, or opens buffer", nargs = "?" })
 
+  vim.api.nvim_create_user_command("SadeSearch", function()
+    if not M.state then
+      vim.notify("[sade] not initialized. Run :SadeInit", vim.log.levels.WARN)
+      return
+    end
+    local search = require("sade.ops.search")
+    search.run(M.state.sade_root, M.state.index)
+  end, { desc = "Search codebase with agent — results go to quickfix list" })
+
   vim.api.nvim_create_user_command("SadeSetup", function()
     agent.setup_interactive()
   end, { desc = "Scan for agent CLIs and configure" })
@@ -128,6 +137,11 @@ function M.setup(opts)
       vim.cmd("SadePrompt")
     end, { desc = "SADE: Prompt agent" })
   end
+  if config.values.shortcuts.search then
+    vim.keymap.set("n", config.values.shortcuts.search, function()
+      vim.cmd("SadeSearch")
+    end, { desc = "SADE: Search codebase" })
+  end
 end
 
 --- Open the prompt buffer with optional context header.
@@ -147,11 +161,16 @@ function M._prompt_buffer(header)
     end
 
     if #node_ids > 0 then
-      default_text = "-- Context: nodes " .. table.concat(node_ids, ", ") .. "\n"
+      -- Pre-fill with #node tokens so they auto-resolve on submit
+      local tokens = {}
+      for _, nid in ipairs(node_ids) do
+        table.insert(tokens, "#" .. nid)
+      end
+      default_text = table.concat(tokens, " ") .. "\n"
     elseif buf_path ~= "" then
-      default_text = "-- Context: " .. buf_path .. " (not mapped to a node)\n"
+      default_text = "-- file: " .. buf_path .. " (not mapped to a node)\n"
     else
-      default_text = "-- Context: no file open\n"
+      default_text = ""
     end
   end
 
@@ -381,6 +400,7 @@ function M.help()
     "",
     "  :SadeTree              Toggle the Super Tree sidebar",
     "  :SadePrompt            Prompt agent (adapts to context — see below)",
+    "  :SadeSearch             Search codebase → quickfix list",
     "  :SadeStop              Stop all running agent requests",
     "",
     "  :SadeUpkeep            Check architecture health",
@@ -396,12 +416,27 @@ function M.help()
     "    Visual selection      Input dialog → runs agent on selection",
     "    Normal mode           Opens prompt buffer, :wq to submit",
     "",
+    "  In the prompt buffer:",
+    "    #node-name           Inject node contract as context",
+    "    #skill / #readme     Inject SKILL.md or README.md",
+    "    @path/to/file        Inject file content as context",
+    "    Tab / Shift-Tab      Navigate completion menu",
+    "",
+    "  ╭─────────────────────────────────────────────────────────╮",
+    "  │                      SEARCH                             │",
+    "  ╰─────────────────────────────────────────────────────────╯",
+    "",
+    "  :SadeSearch asks the agent to find relevant locations.",
+    "  Results are placed in the quickfix list (:cnext, :cprev).",
+    "  Scoped to current file's node, or whole project if unmapped.",
+    "",
     "  ╭─────────────────────────────────────────────────────────╮",
     "  │                  SUPER TREE KEYS                        │",
     "  ╰─────────────────────────────────────────────────────────╯",
     "",
     "    Enter / o            Expand/collapse node, or open file",
     "    a                    Invoke agent on node or file",
+    "    s                    Search within node → quickfix",
     "    K                    Edit node markdown file",
     "    i                    Improve node (expand description)",
     "    c                    Compact node (simplify/merge)",

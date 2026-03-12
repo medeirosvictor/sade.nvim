@@ -17,22 +17,32 @@ local state = {
 
   -- File read flash tracking (from agent stdout)
   reads_flash = {},        -- path → uv_timer_t (auto-clears after 2s)
-  project_root = nil,      -- project root for resolving relative paths
+  project_root = nil,     -- project root for resolving relative paths
+
+  -- Track if heartbeat is running (for deferred callback safety)
+  running = false,
 }
 
 --- Transition a file from active → stale (dim persistent indicator).
 ---@param filepath string
 local function settle_file(filepath)
+  -- Guard against heartbeat being stopped while deferred callback runs
+  if not state.running then
+    return
+  end
+
   state.active[filepath] = nil
   state.stale[filepath] = true
 
   -- stop spinner if no more active files
-  if next(state.active) == nil then
+  if next(state.active) == nil and state.spinner then
     state.spinner:stop()
   end
 
-  -- place stale sign
-  state.spinner:place_stale(filepath)
+  -- place stale sign (guard against nil spinner)
+  if state.spinner then
+    state.spinner:place_stale(filepath)
+  end
 end
 
 --- Clear a read flash for a file.
@@ -100,7 +110,17 @@ end
 --- Handle a file change event (called after debounce).
 ---@param filepath string
 local function on_file_changed(filepath)
+  -- Guard against heartbeat being stopped
+  if not state.running then
+    return
+  end
+
   vim.schedule(function()
+    -- Another check after schedule in case it was stopped while queued
+    if not state.running then
+      return
+    end
+
     -- promote from stale back to active if changed again
     state.stale[filepath] = nil
     state.active[filepath] = vim.uv.now()
@@ -108,9 +128,11 @@ local function on_file_changed(filepath)
     reload_buf(filepath)
     track_batch(filepath)
 
-    state.spinner:start(function()
-      return state.active
-    end)
+    if state.spinner then
+      state.spinner:start(function()
+        return state.active
+      end)
+    end
 
     -- schedule settle check
     local settle_ms = config.values.heartbeat.settle_ms
@@ -175,6 +197,11 @@ end
 --- If the file is already flashing, resets the timer.
 ---@param filepath string  absolute path
 function M.flash_read(filepath)
+  -- Guard against heartbeat being stopped
+  if not state.running then
+    return
+  end
+
   -- clear existing timer for this file
   clear_read_flash(filepath)
 
@@ -251,6 +278,7 @@ end
 --- Start the heartbeat: watch the project root for file changes.
 ---@param project_root string
 function M.start(project_root)
+  state.running = true
   state.spinner = spinner.Spinner.new()
   state.spinner:ensure_signs()
   watch_dir(project_root)
@@ -258,6 +286,8 @@ end
 
 --- Stop all watchers and clear state (silent).
 function M.stop_silent()
+  state.running = false
+
   if state.spinner then
     state.spinner:stop()
     state.spinner = nil

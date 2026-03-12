@@ -20,26 +20,30 @@ local SPINNER_FRAMES = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧",
 local state = {}
 
 --- Get the current visual selection
+--- The '< and '> marks persist after exiting visual mode,
+--- so this works when called from a command after visual selection.
 ---@return { bufnr: number, start_row: number, start_col: number, end_row: number, end_col: number }|nil
 local function get_visual_selection()
-  local mode = vim.fn.mode()
-  if not mode:match("v") and not mode:match("V") then
-    return nil
-  end
-
   local bufnr = vim.api.nvim_get_current_buf()
 
-  -- Get the selection marks
+  -- Get the selection marks ('< and '> persist after exiting visual mode)
   local start_pos = vim.fn.getpos("'<")
   local end_pos = vim.fn.getpos("'>")
+
+  -- Check if marks are set (row 0 means not set)
+  if start_pos[2] == 0 and end_pos[2] == 0 then
+    return nil
+  end
 
   local start_row = start_pos[2] - 1  -- Convert to 0-indexed
   local start_col = start_pos[3] - 1
   local end_row = end_pos[2] - 1
   local end_col = end_pos[3] - 1
 
-  -- Handle visual line mode (V)
-  if mode == "V" then
+  -- Handle visual line mode (V) - check current mode or infer from column
+  -- If start_col is 0 and end_col spans entire lines, it was likely V mode
+  local mode = vim.fn.mode()
+  if mode == "V" or (start_col == 0 and end_col == 0) then
     -- Select whole lines
     local lines = vim.api.nvim_buf_get_lines(bufnr, start_row, end_row + 1, false)
     end_col = 0

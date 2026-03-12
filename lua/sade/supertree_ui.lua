@@ -309,6 +309,19 @@ function M.open(idx)
     -- Just trigger SadePrompt which adapts to tree context
     vim.cmd("SadePrompt")
   end, opts)
+  vim.keymap.set("n", "s", function()
+    -- Search scoped to the highlighted node
+    local cursor = vim.api.nvim_win_get_cursor(ui.winnr)
+    local entry = ui.entries[cursor[1]]
+    local sade = require("sade")
+    if not sade.state then return end
+    local search = require("sade.ops.search")
+    local node_ids = {}
+    if entry and entry.type == "node" and entry.id then
+      node_ids = { entry.id }
+    end
+    search.run(sade.state.sade_root, sade.state.index, { node_ids = node_ids })
+  end, opts)
   -- Node action keybinds
   vim.keymap.set("n", "i", function()
     local cursor = vim.api.nvim_win_get_cursor(ui.winnr)

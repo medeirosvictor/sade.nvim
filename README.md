@@ -76,11 +76,11 @@ Handles user authentication, sessions, and authorization.
 | `:SadeInfo` | Show status: nodes, indexed files, current file's node |
 | `:SadeTree` | Toggle the Super Tree sidebar |
 | `:SadeSeed` | Generate seed prompts for initial or additional nodes |
-| `:SadeAgent [prompt]` | Invoke agent with scoped context |
-| `:SadeAgentSetup` | Pick which agent CLI to use (pi, claude, etc.) |
+| `:SadePrompt` | Invoke agent with scoped context (adapts to tree/visual/normal) |
+| `:SadeSearch` | Search codebase with agent — results go to quickfix list |
+| `:SadeSetup` | Pick which agent CLI to use (pi, claude, etc.) |
 | `:SadeStop` | Stop all running agent requests |
 | `:SadeUpkeep` | Check architecture health (unmapped files, empty nodes) |
-| `:SadeContext` | Copy current file's context to clipboard |
 | `:Sade` | Show actions picker for current node (improve, compact, unmap) |
 | `:SadeHelp` | Show command reference |
 | `:SadeGuide` | Show philosophy and workflow guide |
@@ -102,12 +102,34 @@ Run `:Sade` on a node (or when cursor is on a mapped file) to show an action pic
 
 Uses telescope if available, falls back to vim.ui.select.
 
+## Search
+
+`:SadeSearch` asks the agent to scan the codebase and return relevant locations based on your query. Results go straight to the quickfix list — navigate with `:cnext` / `:cprev`.
+
+- **Scoped by default**: if your current file belongs to a node, the search is scoped to that node's files
+- **From Super Tree**: press `s` on a node to search within it
+- **Full project**: if no node context, searches the entire project
+
+## Prompt Completions
+
+In the prompt buffer (`:SadePrompt`), you can inject context with special tokens:
+
+| Token | What it injects |
+|-------|----------------|
+| `#node-name` | The node's contract (e.g., `#heartbeat`) |
+| `#skill` | `.sade/SKILL.md` |
+| `#readme` | `.sade/README.md` |
+| `@path/to/file` | File content (e.g., `@lua/sade/init.lua`) |
+
+Type `#` or `@` and use **Tab** / **Shift-Tab** to navigate the completion popup. References are resolved at submit time and appended as context.
+
 ## Super Tree Keymaps
 
 | Key | Description |
 |-----|-------------|
 | `Enter` / `o` | Expand/collapse node, or open file |
 | `a` | Invoke agent on node or file |
+| `s` | Search within node → quickfix |
 | `A` | Show node actions picker (improve, compact, unmap) |
 | `K` | Edit node markdown file |
 | `R` | Refresh tree |
