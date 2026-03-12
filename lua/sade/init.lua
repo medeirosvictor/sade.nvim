@@ -21,9 +21,17 @@ M.state = nil
 function M.setup(opts)
   config.setup(opts)
 
+  -- Initialize: find .sade/ and parse nodes (no scaffolding)
   vim.api.nvim_create_user_command("SadeInit", function()
+    local sade_root = project.find_root()
+    if not sade_root then
+      -- Scaffold new .sade/ directory
+      local cwd = vim.uv.cwd()
+      sade_root = project.scaffold(cwd)
+      vim.notify(("[sade] created .sade/ in %s\nEdit README.md and SKILL.md, then run :SadeSeed to generate nodes"):format(cwd))
+    end
     M.init()
-  end, { desc = "Initialize SADE: find .sade/, parse nodes, build index" })
+  end, { desc = "Initialize SADE: find or create .sade/, parse nodes, build index" })
 
   vim.api.nvim_create_user_command("SadeTree", function()
     if not M.state then
@@ -122,10 +130,13 @@ function M.setup(opts)
   if config.values.auto_init then
     vim.api.nvim_create_autocmd("VimEnter", {
       callback = function()
+        -- Only auto-init if .sade/ already exists (don't scaffold)
         local root = project.find_root()
         if root then
           M.init()
         end
+        -- If .sade/ doesn't exist, do nothing - plugin stays uninitialized
+        -- User can manually run :SadeInit to scaffold
       end,
       once = true,
     })
@@ -293,10 +304,9 @@ function M.init()
 
   local sade_root = project.find_root()
   if not sade_root then
-    -- no .sade/ found — scaffold one in cwd
-    local cwd = vim.uv.cwd()
-    sade_root = project.scaffold(cwd)
-    vim.notify(("[sade] created .sade/ in %s\nEdit README.md and SKILL.md, then run :SadeSeed to generate nodes"):format(cwd))
+    -- No .sade/ found - don't auto-scaffold
+    vim.notify("[sade] no .sade/ directory found. Run :SadeInit to scaffold.", vim.log.levels.WARN)
+    return
   end
 
   -- Normalize paths for cross-platform compatibility
