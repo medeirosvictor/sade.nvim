@@ -1,7 +1,8 @@
 local templates = require("sade.templates")
 local M = {}
 
---- Walk up from `start` to find a directory containing `.sade/`.
+--- Find .sade/ in the current working directory only.
+--- Does NOT walk up parent directories - assumes nvim is opened at project root.
 --- Returns the `.sade/` absolute path, or nil + error message.
 ---@param start? string  starting directory (defaults to cwd)
 ---@return string|nil sade_root
@@ -10,19 +11,16 @@ function M.find_root(start)
   local dir = start or vim.uv.cwd()
   -- Normalize initial directory
   dir = vim.fs.normalize(dir)
-  while dir do
-    local sade = dir .. "/.sade"
-    local stat = vim.uv.fs_stat(sade)
-    if stat and stat.type == "directory" then
-      return vim.fs.normalize(sade)
-    end
-    local parent = vim.fn.fnamemodify(dir, ":h")
-    if parent == dir then
-      break
-    end
-    dir = parent
+
+  -- Only check the current directory - do NOT walk up to parents
+  -- This ensures we only scaffold/init in the directory where nvim was opened
+  local sade = dir .. "/.sade"
+  local stat = vim.uv.fs_stat(sade)
+  if stat and stat.type == "directory" then
+    return vim.fs.normalize(sade)
   end
-  return nil, "no .sade/ directory found"
+
+  return nil, "no .sade/ directory found in " .. dir
 end
 
 --- Validate that a `.sade/` directory has the required structure.
