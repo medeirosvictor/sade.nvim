@@ -24,6 +24,7 @@ function M.find_root(start)
 end
 
 --- Validate that a `.sade/` directory has the required structure.
+--- Creates missing directories if found, otherwise returns error.
 ---@param sade_root string  absolute path to `.sade/`
 ---@return boolean ok
 ---@return string|nil error
@@ -31,7 +32,9 @@ function M.validate(sade_root)
   local nodes_dir = sade_root .. "/nodes"
   local stat = vim.uv.fs_stat(nodes_dir)
   if not stat or stat.type ~= "directory" then
-    return false, ".sade/nodes/ directory missing"
+    -- Auto-create missing directories instead of erroring
+    vim.fn.mkdir(nodes_dir, "p")
+    vim.fn.mkdir(sade_root .. "/tmp/logs", "p")
   end
 
   local skill = sade_root .. "/SKILL.md"
